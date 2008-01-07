@@ -19,6 +19,9 @@
 #   new                       applied to <li> if tweet after last CGI view
 #   notindigest               applied to <li> if tweet after last email digest
 #
+# When you view the CGI, anything on there won't appear on a future
+# email digest.
+#
 # For CGI it's *strongly* advised that you run under suexec or via
 # userv, so it's running as you rather than as the web user. You might
 # also prefer to use a little launcher script instead of copying this
@@ -229,27 +232,16 @@ class Tedium:
             self.db.commit()
             c.close()
         except urllib2.URLError, e:
-            try:
-                st = e.info()['Status']
-                idx = st.find(' ')
-                if idx>-1:
-                    st = st[:idx]
-                if int(st)==401:
-                    self.delete_credentials(c)
-                    raise TediumError('Username/password incorrect!', e)
-                if int(st)==304:
-                    # Not modified, don't kick up a fuss
-                    print "304"
-                    c.close()
-                    return
-            except KeyError:
-                # huh? No Status available...
-                print "no status available..."
-                print e.info()
-                print dir(e)
-                pass
-            print e.read()
+            if e.code==401:
+                self.delete_credentials(c)
+                c.close()
+                raise TediumError('Username/password incorrect!', e)
             c.close()
+            if e.code==304:
+                # Not modified, don't kick up a fuss
+                print "304"
+                return
+            #print e.read()
             raise TediumError('Could not fetch updates from Twitter', e)
 
     # not strictly 'now', but the most recent tweet we've found
@@ -432,11 +424,11 @@ class Tedium:
         if self.last_digest==None:
             self.last_digest = '1970-01-01 00:00:00'
         c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [self.last_viewed])
-        rows1 = c.fetchall()
-        number_to_fetch = 40 - len(rows1)
+        rows = c.fetchall()
+        number_to_fetch = 40 - len(rows)
         if number_to_fetch > 0:
             c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [self.last_viewed, number_to_fetch])
-            rows = c.fetchall()
+            rows1 = c.fetchall()
             rows.extend(rows1)
             rows.sort(lambda x,y: -cmp(x[3],y[3]))
         if len(rows)>0:
@@ -459,8 +451,8 @@ class Tedium:
         print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. Including all replies.%s</p>" % (self.username, self.username, digestinfo)).encode('utf-8')
         print self.cgi_address()
         print "</body></html>"
-        #self.update_to_now('last_viewed', None, c)
-        #self.update_to_now('last_digest', None, c)
+        self.update_to_now('last_viewed', None, c)
+        self.update_to_now('last_digest', None, c)
         self.db.commit()
         c.close()
 
