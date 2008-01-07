@@ -239,7 +239,6 @@ class Tedium:
             c.close()
             if e.code==304:
                 # Not modified, don't kick up a fuss
-                print "304"
                 return
             #print e.read()
             raise TediumError('Could not fetch updates from Twitter', e)
