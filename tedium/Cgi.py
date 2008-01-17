@@ -17,19 +17,26 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 
+"""
+Tedium's CGI driver.
+"""
+
 import tedium
 
 import re, os, sys
 
 class TediumCgi:
-    def __init__(self, tedium):
+    """Tedium's CGI driver; construct with a Tedium object, then call do_get()."""
+    def __init__(self, tedium, is_test=False):
+        """Initialise driver with a given Tedium object."""
         self.tedium = tedium
+        self.is_test = is_test
         self.linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
         self.user_linkifier = re.compile('@([A-Za-z0-9_]+)')
         pass
 
-    def auth(self):
-        if self.tedium.is_test:
+    def _auth(self):
+        if self.is_test:
             return
         if os.environ.get('REMOTE_USER')!=self.tedium.username:
             print "Content-Type: text/html; charset=utf-8\r\n"
@@ -41,10 +48,10 @@ class TediumCgi:
             print "</body></html>"
             sys.exit(0)
 
-    def address(self):
+    def _address(self):
         return (u"<address>tedium v%s copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>" % (tedium.VERSION,)).encode('utf-8')
 
-    def stylesheet(self):
+    def _stylesheet(self):
         cssfile = None
         for file in os.listdir('.'):
             if file[-4:]=='.css':
@@ -55,7 +62,7 @@ class TediumCgi:
         else:
             return ""
 
-    def htmlify(self, text):
+    def _htmlify(self, text):
         import re
         # link anything using common URI
         text = re.sub(self.linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
@@ -64,12 +71,13 @@ class TediumCgi:
         return text
 
     def do_get(self):
-        self.auth()
+        """Process a GET request."""
+        self._auth()
 
         print "Content-Type: text/html; charset=utf-8\r\n"
         print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
         print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Tweets for %s</title>" % self.tedium.username).encode('utf-8')
-        print self.stylesheet();
+        print self._stylesheet();
         print "</head><body>"
         tweets = self.tedium.tweets_to_view(40) # 40 is min to display
 
@@ -84,14 +92,15 @@ class TediumCgi:
                     rowstyle+=" notindigest"
                 if author['protected']:
                     rowstyle+=" protected"
-                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self.htmlify(tweet['tweet']))).encode('utf-8')
+                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self._htmlify(tweet['tweet']))).encode('utf-8')
             print "</ol>"
         if self.tedium.last_digest!=None and self.tedium.last_digest!=self.tedium.last_viewed:
             digestinfo = ' Digest emails appear to be running.'
         else:
             digestinfo = ''
         print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. Including all replies.%s</p>" % (self.tedium.username, self.tedium.username, digestinfo)).encode('utf-8')
-        print self.address()
+        print self._address()
         print "</body></html>"
-        self.tedium.update_to_now('last_viewed')
-        self.tedium.update_to_now('last_digest')
+        if not self.is_test:
+            self.tedium.update_to_now('last_viewed')
+            self.tedium.update_to_now('last_digest')

@@ -17,6 +17,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 
+"""Core; currently, everything except CGI and invocation."""
+
 import urllib, urllib2, os, os.path, sys, json
 import datetime, time, smtplib, textwrap, pwd, getopt
 
@@ -27,8 +29,7 @@ import email.Charset
 import tedium
 
 class Tedium:
-    def __init__(self, configpath=None, is_test=False):
-        self.is_test = is_test
+    def __init__(self, configpath=None):
         if configpath==None:
             try:
                 userdir = os.environ['HOME']
@@ -52,7 +53,7 @@ class Tedium:
         c = self.db.cursor()
         self.username = ''
         self.password = ''
-        self.ensure_database(c)
+        self._ensure_database(c)
 
         c.execute("SELECT last_updated, last_digest, last_viewed, username, password, digest_format FROM metadata LIMIT 1")
         row = c.fetchone()
@@ -63,7 +64,7 @@ class Tedium:
         self.password = row[4]
         self.digest_format = row[5]
         if self.username==None or self.password==None:
-            self.configure(c)
+            self._configure(c)
         self.db.commit()
         c.close()
 
@@ -72,8 +73,8 @@ class Tedium:
         opener = urllib2.build_opener(auth_handler)
         urllib2.install_opener(opener)
 
-    def ensure_database(self, cursor):
-        self.create_if_no_metadata_table(cursor)
+    def _ensure_database(self, cursor):
+        self._create_if_no_metadata_table(cursor)
         cursor.execute("SELECT version FROM metadata")
         row = cursor.fetchone()
         if row==None:
@@ -87,29 +88,29 @@ class Tedium:
             cursor.execute("DROP TABLE IF EXISTS metadata")
             cursor.execute("DROP TABLE IF EXISTS tweets")
             cursor.execute("DROP TABLE IF EXISTS authors")
-            self.create_if_no_metadata_table(cursor)
+            self._create_if_no_metadata_table(cursor)
             cursor.execute("INSERT INTO metadata(version) VALUES (?)", [tedium.DB_VERSION])
-            self.initialise_database(cursor)
+            self._initialise_database(cursor)
         else:
             if row[0] < tedium.DB_VERSION:
                 print "Upgrading db."
-                self.upgrade_database(row[0], cursor)
+                self._upgrade_database(row[0], cursor)
 
-    def create_if_no_metadata_table(self, cursor):
+    def _create_if_no_metadata_table(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20))" % tedium.DB_VERSION)
 
-    def initialise_database(self, cursor):
+    def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
         cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0)")
-        self.configure(cursor)
+        self._configure(cursor)
 
     def reconfigure(self):
         cursor = self.db.cursor()
-        self.configure(cursor)
+        self._configure(cursor)
         self.db.commit()
         cursor.close()
 
-    def configure(self, cursor):
+    def _configure(self, cursor):
         if sys.stdin.isatty():
             if self.username:
                 sys.stdout.write('Enter your twitter username [%s]: ' % self.username)
@@ -138,7 +139,7 @@ class Tedium:
         cursor.execute("UPDATE metadata SET username=NULL, password=NULL")
         self.db.commit()
 
-    def upgrade_database(self, old_version, cursor):
+    def _upgrade_database(self, old_version, cursor):
         if old_version<2:
             cursor.execute("ALTER TABLE authors ADD COLUMN author_include_replies INTEGER(1) NOT NULL DEFAULT 0")
             cursor.execute("UPDATE metadata SET version=2")
@@ -178,9 +179,8 @@ class Tedium:
     # note that this can go wrong if you use the automatic version
     # (now=None)
     def update_to_now(self, field, now=None):
+        """Update given metadata timestamp to most recent tweet publication\ntime or given ``now''."""
         cursor = self.db.cursor()
-        if self.is_test:
-            return
         if now==None:
             cursor.execute("SELECT MAX(tweet_published) FROM tweets")
             row = cursor.fetchone()
