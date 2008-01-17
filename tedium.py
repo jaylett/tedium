@@ -441,7 +441,16 @@ class Tedium:
         c.close()
 
 def usage():
-    print "Tedium"
+    print u"Usage: %s [options] [email [name]]" % sys.argv[0]
+    print u"Options:"
+    print u"\t--help\t\tThis message"
+    print u"\t--confdir d\tUse ``d'' instead of ~/.tedium"
+    print u"\t--reconfigure\tReconfigure tedium"
+    print
+    print u"Will force configuration the first time."
+    print u"Subsequent runs will update from Twitter."
+    print u"Call with email address and optional name to generate digest."
+    print u"Run as CGI for web interface."
 
 if __name__ == '__main__':
     try:
