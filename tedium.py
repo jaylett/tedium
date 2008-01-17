@@ -209,8 +209,8 @@ class Tedium:
             tweets = j.read(data)
             for tweet in tweets:
                 self.process_tweet(tweet, c)
-            self.update_to_now('last_updated', None, c)
-            self.db.commit()
+            self.update_to_now('last_updated')
+            self.db.commit() # superfluous as update_to_now does this for us
             c.close()
         except urllib2.URLError, e:
             if e.code==401:
@@ -227,7 +227,8 @@ class Tedium:
     # not strictly 'now', but the most recent tweet we've found
     # note that this can go wrong if you use the automatic version
     # (now=None)
-    def update_to_now(self, field, now, cursor):
+    def update_to_now(self, field, now=None):
+        cursor = self.db.cursor()
         if self.is_test:
             return
         if now==None:
@@ -244,6 +245,8 @@ class Tedium:
                 rows = cursor.fetchall()
                 if len(rows)==0:
                     cursor.execute("INSERT INTO metadata (%s) VALUES (?)" % field, [now])
+        self.db.commit()
+        cursor.close()
 
     _author_cache = {}
     def get_author(self, id, cursor):
@@ -361,19 +364,11 @@ class Tedium:
                 s.connect()
                 s.sendmail(email_address, [email_address], msg.as_string())
                 s.close()
-        self.update_to_now('last_digest', None, c)
-        self.db.commit()
+        self.update_to_now('last_digest')
+        self.db.commit() # superfluous as update_to_now() does this for us
         c.close()
 
-    def cgi(self):
-        cgi = tedium.Cgi.TediumCgi(self)
-        cgi.auth()
-
-        print "Content-Type: text/html; charset=utf-8\r\n"
-        print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
-        print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Tweets for %s</title>" % self.username).encode('utf-8')
-        print cgi.stylesheet();
-        print "</head><body>"
+    def tweets_to_view(self, min_to_display):
         c = self.db.cursor()
         if self.last_viewed==None:
             self.last_viewed = '1970-01-01 00:00:00'
@@ -381,36 +376,20 @@ class Tedium:
             self.last_digest = '1970-01-01 00:00:00'
         c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [self.last_viewed])
         rows = c.fetchall()
-        number_to_fetch = 40 - len(rows)
+        number_to_fetch = min_to_display - len(rows)
         if number_to_fetch > 0:
             c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [self.last_viewed, number_to_fetch])
             rows1 = c.fetchall()
             rows.extend(rows1)
             rows.sort(lambda x,y: -cmp(x[3],y[3]))
-        if len(rows)>0:
-            print "<ol>"
-            for row in rows:
-                author = self.get_author(row[2], c)
-                rowstyle=""
-                if row[3]>self.last_viewed:
-                    rowstyle+=" new"
-                if row[3]>self.last_digest:
-                    rowstyle+=" notindigest"
-                if author['protected']:
-                    rowstyle+=" protected"
-                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, row[0], author['nick'], author['fn'], cgi.htmlify(row[1]))).encode('utf-8')
-            print "</ol>"
-        if self.last_digest!=None and self.last_digest!=self.last_viewed:
-            digestinfo = ' Digest emails appear to be running.'
-        else:
-            digestinfo = ''
-        print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. Including all replies.%s</p>" % (self.username, self.username, digestinfo)).encode('utf-8')
-        print cgi.address()
-        print "</body></html>"
-        self.update_to_now('last_viewed', None, c)
-        self.update_to_now('last_digest', None, c)
-        self.db.commit()
+        out_rows = []
+        for row in rows:
+            out_rows.append({ 'date': row[0],
+                              'tweet': row[1],
+                              'author': self.get_author(row[2], c),
+                              'published': row[3]})
         c.close()
+        return out_rows
 
 def usage():
     print u"Usage: %s [options] [email [name]]" % sys.argv[0]
@@ -458,7 +437,8 @@ if __name__ == '__main__':
             else:
                 t.digest(args[0])
         elif os.environ.get('GATEWAY_INTERFACE')=='CGI/1.1':
-            t.cgi()
+            cgi = tedium.Cgi.TediumCgi(t)
+            cgi.do_get()
         else:
             # Get latest tweets (possibly prompt for configuration first)
             t.update()

@@ -58,3 +58,36 @@ class TediumCgi:
         # link anything using common URI
         linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
         return re.sub(linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
+
+    def do_get(self):
+        self.auth()
+
+        print "Content-Type: text/html; charset=utf-8\r\n"
+        print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
+        print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Tweets for %s</title>" % self.tedium.username).encode('utf-8')
+        print self.stylesheet();
+        print "</head><body>"
+        tweets = self.tedium.tweets_to_view(40) # 40 is min to display
+
+        if len(tweets)>0:
+            print "<ol>"
+            for tweet in tweets:
+                author = tweet['author']
+                rowstyle=""
+                if tweet['published']>self.tedium.last_viewed:
+                    rowstyle+=" new"
+                if tweet['published']>self.tedium.last_digest:
+                    rowstyle+=" notindigest"
+                if author['protected']:
+                    rowstyle+=" protected"
+                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self.htmlify(tweet['tweet']))).encode('utf-8')
+            print "</ol>"
+        if self.tedium.last_digest!=None and self.tedium.last_digest!=self.tedium.last_viewed:
+            digestinfo = ' Digest emails appear to be running.'
+        else:
+            digestinfo = ''
+        print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. Including all replies.%s</p>" % (self.tedium.username, self.tedium.username, digestinfo)).encode('utf-8')
+        print self.address()
+        print "</body></html>"
+        self.tedium.update_to_now('last_viewed')
+        self.tedium.update_to_now('last_digest')
