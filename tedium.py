@@ -179,7 +179,7 @@ class Tedium:
                 self.password = password
             sys.stdout.write('Enter digest format string (Return for default): ')
             self.digest_format = sys.stdin.readline()
-            self.digest_format = digest_format.strip()
+            self.digest_format = self.digest_format.strip()
             cursor.execute("UPDATE metadata SET username=?, password=?, digest_format=?", [self.username, self.password, self.digest_format])
         else:
             raise tedium.TediumError('You must configure Tedium before it will work.\nJust run it from the command line to get things started.')
