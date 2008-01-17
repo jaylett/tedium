@@ -24,6 +24,8 @@ import re, os, sys
 class TediumCgi:
     def __init__(self, tedium):
         self.tedium = tedium
+        self.linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
+        self.user_linkifier = re.compile('@([A-Za-z0-9_]+)')
         pass
 
     def auth(self):
@@ -56,8 +58,10 @@ class TediumCgi:
     def htmlify(self, text):
         import re
         # link anything using common URI
-        linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
-        return re.sub(linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
+        text = re.sub(self.linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
+        # link @username
+        text = re.sub(self.user_linkifier, '<a target="_new" href="http://twitter.com/\g<1>">\g<0></a>', text)
+        return text
 
     def do_get(self):
         self.auth()

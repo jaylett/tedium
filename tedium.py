@@ -59,7 +59,6 @@
 # sqlite3 client). Otherwise, only replies to you are shown.
 #
 # FEATURE: CGI option to restrict replies as digest
-# FEATURE: link @username targets
 # FEATURE: CGI mechanisms for post & reply
 # FIXME: when we mark last_*, we use max(tweet_published) from too late
 # FIXME: assumes UTC coming out of twitter
