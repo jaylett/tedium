@@ -397,6 +397,7 @@ def usage():
     print u"\t--help\t\tThis message"
     print u"\t--confdir d\tUse ``d'' instead of ~/.tedium"
     print u"\t--reconfigure\tReconfigure tedium"
+    print u"\t--test\t\tdon't require auth, don't update timestamps"
     print
     print u"Will force configuration the first time."
     print u"Subsequent runs will update from Twitter."
