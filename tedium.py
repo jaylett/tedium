@@ -6,7 +6,22 @@
 #                     or
 # tedium: the Twitter Digest Manager
 #
-# run once to set up username/password, run on cron to grab latest
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
+# USA
+#
+# Run once to set up username/password, run on cron to grab latest
 # tweets, run as CGI to see recent activity, run with an email address
 # to get a digest. It figures out the context.
 #
@@ -58,21 +73,6 @@
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
 # FIXME: CLI options, while retaining ease of use, to avoid magic parameters
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation; either version 2 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
-# USA
 
 import urllib, urllib2, os, os.path, sys, json
 import datetime, time, smtplib, textwrap, pwd
@@ -81,16 +81,7 @@ from pysqlite2 import dbapi2 as sqlite
 from email.MIMEText import MIMEText
 import email.Charset
 
-VERSION = '0.1'
-DB_VERSION = 2
-DEFAULT_DIGEST_FORMAT = u'(%(time)5.5s) %(nick)12.12s: %(tweet)-48.48s \u00bb\n'
-#DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(nick)12.12s: %(tweet)s\n'
-#DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(fn)s: \n%(wrapped_tweet)s\n'
-
-class TediumError(RuntimeError):
-    def __init__(self, message, aux=None):
-        RuntimeError.__init__(self, message)
-        self.aux = aux
+import tedium
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -101,14 +92,14 @@ class Tedium:
                 pwent = pwd.getpwuid(os.getuid())
                 userdir = pwent[5]
             except:
-                raise TediumError("Cannot determine home directory.")
+                raise tedium.TediumError("Cannot determine home directory.")
             configpath = os.path.join(userdir, '.tedium')
             if not os.path.exists(configpath):
                 os.mkdir(configpath)
             if not os.path.isdir(configpath):
-                raise TediumError('~/.tedium exists and is not a directory')
+                raise tedium.TediumError('~/.tedium exists and is not a directory')
         elif not os.path.isdir(configpath):
-            raise TediumError("%s is not a directory" % configpath)
+            raise tedium.TediumError("%s is not a directory" % configpath)
 
         self.configpath = configpath
         self.dbpath = os.path.join(self.configpath, 'db')
@@ -153,15 +144,15 @@ class Tedium:
             cursor.execute("DROP TABLE IF EXISTS tweets")
             cursor.execute("DROP TABLE IF EXISTS authors")
             self.create_if_no_metadata_table(cursor)
-            cursor.execute("INSERT INTO metadata(version) VALUES (?)", [DB_VERSION])
+            cursor.execute("INSERT INTO metadata(version) VALUES (?)", [tedium.DB_VERSION])
             self.initialise_database(cursor)
         else:
-            if row[0] < DB_VERSION:
+            if row[0] < tedium.DB_VERSION:
                 print "Upgrading db."
                 self.upgrade_database(row[0], cursor)
 
     def create_if_no_metadata_table(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20))" % DB_VERSION)
+        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20))" % tedium.DB_VERSION)
 
     def initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
@@ -196,12 +187,12 @@ class Tedium:
             digest_format = sys.stdin.readline()
             digest_format = digest_format.strip()
             if digest_format=='':
-                self.digest_format = DEFAULT_DIGEST_FORMAT
+                self.digest_format = tedium.DEFAULT_DIGEST_FORMAT
             else:
                 self.digest_format = digest_format
             cursor.execute("UPDATE metadata SET username=?, password=?, digest_format=?", [self.username, self.password, self.digest_format])
         else:
-            raise TediumError('You must configure Tedium before it will work.\nJust run it from the command line to get things started.')
+            raise tedium.TediumError('You must configure Tedium before it will work.\nJust run it from the command line to get things started.')
 
     def delete_credentials(self, cursor):
         cursor.execute("UPDATE metadata SET username=NULL, password=NULL")
@@ -235,13 +226,13 @@ class Tedium:
             if e.code==401:
                 self.delete_credentials(c)
                 c.close()
-                raise TediumError('Username/password incorrect!', e)
+                raise tedium.TediumError('Username/password incorrect!', e)
             c.close()
             if e.code==304:
                 # Not modified, don't kick up a fuss
                 return
             #print e.read()
-            raise TediumError('Could not fetch updates from Twitter', e)
+            raise tedium.TediumError('Could not fetch updates from Twitter', e)
 
     # not strictly 'now', but the most recent tweet we've found
     # note that this can go wrong if you use the automatic version
@@ -388,7 +379,7 @@ class Tedium:
             sys.exit(0)
 
     def cgi_address(self):
-        return (u"<address>tedium v%s copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>" % (VERSION,)).encode('utf-8')
+        return (u"<address>tedium v%s copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>" % (tedium.VERSION,)).encode('utf-8')
 
     def cgi_stylesheet(self):
         cssfile = None
@@ -457,7 +448,7 @@ class Tedium:
 
 if __name__ == '__main__':
     try:
-        t = Tedium()
+        t = Tedium('test')
         if len(sys.argv)>1:
             if sys.argv[1]=='reconfigure':
                 t.reconfigure()
@@ -472,7 +463,7 @@ if __name__ == '__main__':
         else:
             # Get latest tweets (possibly prompt for configuration first)
             t.update()
-    except TediumError, e:
+    except tedium.TediumError, e:
         sys.stdout.write(str(e))
         sys.stdout.write("\n")
         print e.aux
