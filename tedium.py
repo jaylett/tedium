@@ -74,9 +74,11 @@ from email.MIMEText import MIMEText
 import email.Charset
 
 import tedium
+import tedium.Cgi
 
 class Tedium:
-    def __init__(self, configpath=None):
+    def __init__(self, configpath=None, is_test=False):
+        self.is_test = is_test
         if configpath==None:
             try:
                 userdir = os.environ['HOME']
@@ -226,6 +228,8 @@ class Tedium:
     # note that this can go wrong if you use the automatic version
     # (now=None)
     def update_to_now(self, field, now, cursor):
+        if self.is_test:
+            return
         if now==None:
             cursor.execute("SELECT MAX(tweet_published) FROM tweets")
             row = cursor.fetchone()
@@ -361,46 +365,14 @@ class Tedium:
         self.db.commit()
         c.close()
 
-    def cgi_auth(self):
-        if os.environ.get('REMOTE_USER')!=self.username:
-            print "Content-Type: text/html; charset=utf-8\r\n"
-            print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
-            print "<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Permission denied</title>"
-            print self.cgi_stylesheet();
-            print "</head><body><h1>Permission denied</h1><p>You <em>must</em> set tedium up so it's sitting behind HTTP authentication. If you know what you're doing and disagree, change the source code. If not, set it up. I can't easily police whether you only access it encrypted, or across otherwise-secured transports, so there you're on your own. Sorry.</p>"
-            print self.cgi_address()
-            print "</body></html>"
-            sys.exit(0)
-
-    def cgi_address(self):
-        return (u"<address>tedium v%s copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>" % (tedium.VERSION,)).encode('utf-8')
-
-    def cgi_stylesheet(self):
-        cssfile = None
-        for file in os.listdir('.'):
-            if file[-4:]=='.css':
-                cssfile = file
-                break
-        if cssfile!=None:
-            return "<link type='text/css' rel='stylesheet' href='%s' />" % cssfile
-        else:
-            return ""
-
-    def htmlify(self, text):
-        import re
-        # link anything using common URI
-        linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
-        return re.sub(linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
-
     def cgi(self):
-        import cgi
-        opts = cgi.FieldStorage()
-        self.cgi_auth()
+        cgi = tedium.Cgi.TediumCgi(self)
+        cgi.auth()
 
         print "Content-Type: text/html; charset=utf-8\r\n"
         print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
         print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Tweets for %s</title>" % self.username).encode('utf-8')
-        print self.cgi_stylesheet();
+        print cgi.stylesheet();
         print "</head><body>"
         c = self.db.cursor()
         if self.last_viewed==None:
@@ -426,14 +398,14 @@ class Tedium:
                     rowstyle+=" notindigest"
                 if author['protected']:
                     rowstyle+=" protected"
-                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, row[0], author['nick'], author['fn'], self.htmlify(row[1]))).encode('utf-8')
+                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, row[0], author['nick'], author['fn'], cgi.htmlify(row[1]))).encode('utf-8')
             print "</ol>"
         if self.last_digest!=None and self.last_digest!=self.last_viewed:
             digestinfo = ' Digest emails appear to be running.'
         else:
             digestinfo = ''
         print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. Including all replies.%s</p>" % (self.username, self.username, digestinfo)).encode('utf-8')
-        print self.cgi_address()
+        print cgi.address()
         print "</body></html>"
         self.update_to_now('last_viewed', None, c)
         self.update_to_now('last_digest', None, c)
@@ -455,13 +427,14 @@ def usage():
 if __name__ == '__main__':
     try:
         try:
-            optlist, args = getopt.getopt(sys.argv[1:], 'hc:r', ['help', 'confdir=', 'reconfigure'])
+            optlist, args = getopt.getopt(sys.argv[1:], 'hc:rt', ['help', 'confdir=', 'reconfigure', 'test'])
         except getopt.GetoptError:
             usage()
             sys.exit(2)
 
         confdir = None
         reconfigure = False
+        is_test = False
 
         for opt, arg in optlist:
             if opt in ('-h', '--help'):
@@ -471,8 +444,10 @@ if __name__ == '__main__':
                 confdir = arg
             if opt in ('r', '--reconfigure'):
                 reconfigure = True
+            if opt in ('t', '--test'):
+                is_test = True
 
-        t = Tedium(confdir)
+        t = Tedium(confdir, is_test)
         if reconfigure:
             t.reconfigure()
             sys.exit()

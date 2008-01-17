@@ -17,6 +17,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 
+__all__ = ['Cgi']
+
 VERSION = '0.2'
 DB_VERSION = 2
 #DEFAULT_DIGEST_FORMAT = u'(%(time)5.5s) %(nick)12.12s: %(tweet)-48.48s \u00bb\n'
