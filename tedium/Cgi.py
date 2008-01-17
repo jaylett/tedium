@@ -92,7 +92,7 @@ class TediumCgi:
                     rowstyle+=" notindigest"
                 if author['protected']:
                     rowstyle+=" protected"
-                print (u"<li class='%s'><span class='time'>%s</span><span class='author'><a href='http://twitter.com/%s'>%s</a></span><span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self._htmlify(tweet['tweet']))).encode('utf-8')
+                print (u"<li class='%s'><span class='time'>%s</span> <a class='author' href='http://twitter.com/%s'>%s</a> <span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self._htmlify(tweet['tweet']))).encode('utf-8')
             print "</ol>"
         if self.tedium.last_digest!=None and self.tedium.last_digest!=self.tedium.last_viewed:
             digestinfo = ' Digest emails appear to be running.'
