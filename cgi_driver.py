@@ -3,4 +3,5 @@ import sys
 sys.path.append('/path/to/here')
 import tedium
 t = tedium.Tedium()
-t.cgi()
+cgi = tedium.Cgi.TediumCgi(t)
+cgi.do_get()
