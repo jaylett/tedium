@@ -39,22 +39,15 @@
 #
 # For CGI it's *strongly* advised that you run under suexec or via
 # userv, so it's running as you rather than as the web user. You might
-# also prefer to use a little launcher script instead of copying this
-# file into your web space:
+# also prefer to use cgi_driver.py instead of copying everything into
+# your web space.
 #
-#   #!/usr/bin/env python
-#   import sys
-#   sys.path.append('/path/to/here')
-#   import tedium
-#   t = tedium.Tedium()
-#   t.cgi()
-#
-# Everything stored in ~/.tedium, or somewhere else if you pass in a
-# directory to the Tedium class constructor. (See down the bottom, and
-# above in the sample CGI launcher.) You should change the permissions
-# on the directory so they aren't readable by anyone other than you
-# (hence suexec/userv for CGI) since it will contain your twitter
-# login credentials.
+# Everything is stored in ~/.tedium, or somewhere else if you pass in
+# a directory to the Tedium class constructor. (See down the bottom,
+# and above in the sample CGI launcher.) You should change the
+# permissions on the directory so they aren't readable by anyone other
+# than you (hence suexec/userv for CGI) since it will contain your
+# twitter login credentials.
 #
 # For CGI access, you must run behind some sort of HTTP authentication.
 # Either use digest, or basic behind HTTPS, or anything over a local
@@ -72,10 +65,9 @@
 # FIXME: assumes UTC coming out of twitter
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
-# FIXME: CLI options, while retaining ease of use, to avoid magic parameters
 
 import urllib, urllib2, os, os.path, sys, json
-import datetime, time, smtplib, textwrap, pwd
+import datetime, time, smtplib, textwrap, pwd, getopt
 
 from pysqlite2 import dbapi2 as sqlite
 from email.MIMEText import MIMEText
@@ -184,12 +176,8 @@ class Tedium:
             if password!='':
                 self.password = password
             sys.stdout.write('Enter digest format string (Return for default): ')
-            digest_format = sys.stdin.readline()
-            digest_format = digest_format.strip()
-            if digest_format=='':
-                self.digest_format = tedium.DEFAULT_DIGEST_FORMAT
-            else:
-                self.digest_format = digest_format
+            self.digest_format = sys.stdin.readline()
+            self.digest_format = digest_format.strip()
             cursor.execute("UPDATE metadata SET username=?, password=?, digest_format=?", [self.username, self.password, self.digest_format])
         else:
             raise tedium.TediumError('You must configure Tedium before it will work.\nJust run it from the command line to get things started.')
@@ -271,6 +259,12 @@ class Tedium:
             self._author_cache[id] = u
             return u
 
+    def digest_line(self, keys):
+        if self.digest_format!=None:
+            return self.digest_format % keys
+        else:
+            return tedium.DEFAULT_DIGEST_FORMAT % keys
+
     def get_author_by_username(self, username, cursor):
         cursor.execute("SELECT author_id FROM authors WHERE author_nick=?", [username])
         row = cursor.fetchone()
@@ -342,7 +336,7 @@ class Tedium:
                     print "Skipping %s" % row[1]
                     continue
                 digest_keys = {'time': row[0], 'nick': author['nick'], 'fn': author['fn'], 'tweet': row[1], 'wrapped_tweet': tw.fill(row[1])}
-                digest += self.digest_format % digest_keys
+                digest += self.digest_line(digest_keys)
             if digest!='':
                 digest = "Hi %s. Here's your twitter digest:\n\n%s" % (self.username, digest)
 
@@ -446,18 +440,39 @@ class Tedium:
         self.db.commit()
         c.close()
 
+def usage():
+    print "Tedium"
+
 if __name__ == '__main__':
     try:
-        t = Tedium('test')
-        if len(sys.argv)>1:
-            if sys.argv[1]=='reconfigure':
-                t.reconfigure()
+        try:
+            optlist, args = getopt.getopt(sys.argv[1:], 'hc:r', ['help', 'confdir=', 'reconfigure'])
+        except getopt.GetoptError:
+            usage()
+            sys.exit(2)
+
+        confdir = None
+        reconfigure = False
+
+        for opt, arg in optlist:
+            if opt in ('-h', '--help'):
+                usage()
+                sys.exit()
+            if opt in ('-c', '--confdir'):
+                confdir = arg
+            if opt in ('r', '--reconfigure'):
+                reconfigure = True
+
+        t = Tedium(confdir)
+        if reconfigure:
+            t.reconfigure()
+            sys.exit()
+
+        if len(args)>0:
+            if len(args)>1:
+                t.digest(args[0], args[1])
             else:
-                # send digest email
-                if len(sys.argv)>2:
-                    t.digest(sys.argv[1], sys.argv[2])
-                else:
-                    t.digest(sys.argv[1])
+                t.digest(args[0])
         elif os.environ.get('GATEWAY_INTERFACE')=='CGI/1.1':
             t.cgi()
         else:
