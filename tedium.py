@@ -40,7 +40,7 @@
 # For CGI it's *strongly* advised that you run under suexec or via
 # userv, so it's running as you rather than as the web user. You might
 # also prefer to use cgi_driver.py instead of copying everything into
-# your web space.
+# your web space. (You'll need to edit it slightly.)
 #
 # Everything is stored in ~/.tedium, or somewhere else if you pass in
 # a directory to the Tedium class constructor. (See down the bottom,
