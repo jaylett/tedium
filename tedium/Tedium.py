@@ -222,8 +222,11 @@ class Tedium:
             status = j.read(data)
             if status['text']==new_status:
                 self.set_conf('current_status', new_status)
+                self.save_changes()
             else:
                 raise tedium.TediumError("Came back with different status: %s" % status['text'])
+        except tedium.TediumError:
+            raise
         except Exception, e:
             raise tedium.TediumError("Could not post new tweet", e)
 
@@ -386,8 +389,9 @@ class Tedium:
                 s.connect()
                 s.sendmail(email_address, [email_address], msg.as_string())
                 s.close()
-        max_published = max(map(lambda x: x[3], rows))
-        self.update_to_now('last_digest', max_published)
+
+            max_published = max(map(lambda x: x[3], rows))
+            self.update_to_now('last_digest', max_published)
         c.close()
 
     def tweets_to_view(self, min_to_display, replies='all'):

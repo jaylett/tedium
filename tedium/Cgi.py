@@ -207,7 +207,7 @@ class Driver:
         print (u"<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/%s'>%s</a>. %s%s</p>" % (self.tedium.username, self.tedium.username, repliesinfo, digestinfo)).encode('utf-8')
         print self._address()
         print "</body></html>"
-        if not self.is_test:
+        if not self.is_test and len(tweets)>0:
             max_published = max(map(lambda x: x['published'], tweets))
             self.tedium.update_to_now('last_viewed', max_published)
             self.tedium.update_to_now('last_digest', max_published)
