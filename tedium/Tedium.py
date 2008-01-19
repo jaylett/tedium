@@ -310,6 +310,7 @@ class Tedium:
         ds_obj = datetime.datetime(*time.strptime(dt_in, "%a %b %d %H:%M:%S %Y")[0:6])
         timestring = ds_obj.isoformat()
         cursor.execute("INSERT INTO tweets (tweet_author, tweet_text, tweet_published) VALUES (?, ?, ?)", [author_id, text, timestring])
+        return timestring
         #print "Inserted tweet from %i" % author_id
 
     def process_tweet(self, tweet, cursor):
@@ -319,7 +320,7 @@ class Tedium:
             author_id = self.make_author(tweet['user'], cursor)
         else:
             author_id = self.update_author(tweet['user'], cursor)
-        self.make_tweet(author_id, tweet['text'], tweet['created_at'], cursor)
+        return self.make_tweet(author_id, tweet['text'], tweet['created_at'], cursor)
 
     def digest(self, email_address, real=None):
         c = self.db.cursor()
