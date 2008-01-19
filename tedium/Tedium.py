@@ -57,14 +57,12 @@ class Tedium:
         self.password = ''
         self._ensure_database(c)
 
-        c.execute("SELECT last_updated, last_digest, last_viewed, username, password, digest_format FROM metadata LIMIT 1")
+        c.execute("SELECT last_updated, username, password, digest_format FROM metadata LIMIT 1")
         row = c.fetchone()
         self.last_updated = row[0]
-        self.last_digest = row[1]
-        self.last_viewed = row[2]
-        self.username = row[3]
-        self.password = row[4]
-        self.digest_format = row[5]
+        self.username = row[1]
+        self.password = row[2]
+        self.digest_format = row[3]
         if self.username==None or self.password==None:
             self._configure(c)
         self.db.commit()
@@ -179,9 +177,13 @@ class Tedium:
             data = f.read()
             f.close()
             tweets = j.read(data)
+            max_published = None
             for tweet in tweets:
-                self.process_tweet(tweet, c)
-            self.update_to_now('last_updated')
+                published = self.process_tweet(tweet, c)
+                if published > max_published or max_published==None:
+                    max_published = published
+            if max_published!=None:
+                self.set_conf('last_updated', max_published)
             c.close()
             self.save_changes()
         except urllib2.URLError, e:
@@ -196,12 +198,14 @@ class Tedium:
             #print e.read()
             raise tedium.TediumError('Could not fetch updates from Twitter', e)
 
-    def get_conf(self, confname):
+    def get_conf(self, confname, default=None):
         """Get a config option."""
         cursor = self.db.cursor()
         cursor.execute("SELECT %s FROM metadata" % confname)
         row = cursor.fetchone()
         value = row[0]
+        if value==None:
+            value = default
         cursor.close()
         return value
 
@@ -229,31 +233,6 @@ class Tedium:
             raise
         except Exception, e:
             raise tedium.TediumError("Could not post new tweet", e)
-
-    def get_last_viewed(self):
-        """Get the time tweets were last viewed (as opposed to digested)."""
-        cursor = self.db.cursor()
-        cursor.execute("SELECT last_viewed FROM metadata")
-        row = cursor.fetchone()
-        last_viewed = row[0]
-        cursor.close()
-        return last_viewed
-
-    # not strictly 'now', but the most recent tweet we've found
-    # note that this can go wrong if you use the automatic version
-    # (now=None)
-    def update_to_now(self, field, now=None):
-        """Update given metadata timestamp to most recent tweet publication\ntime or given ``now''."""
-        cursor = self.db.cursor()
-        if now==None:
-            cursor.execute("SELECT MAX(tweet_published) FROM tweets")
-            row = cursor.fetchone()
-            if row[0]!=None:
-                now = row[0]
-        if now!=None:
-            cursor.execute("UPDATE metadata SET %s=?" % field, [now])
-        self.db.commit()
-        cursor.close()
 
     _author_cache = {}
     def get_author(self, id, cursor):
@@ -344,9 +323,8 @@ class Tedium:
 
     def digest(self, email_address, real=None):
         c = self.db.cursor()
-        if self.last_digest==None:
-            self.last_digest = '1970-01-01 00:00:00'
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [self.last_digest])
+        last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_digest])
         rows = c.fetchall()
         if len(rows)>0:
             digest = ''
@@ -391,20 +369,19 @@ class Tedium:
                 s.close()
 
             max_published = max(map(lambda x: x[3], rows))
-            self.update_to_now('last_digest', max_published)
+            self.set_conf('last_digest', max_published)
         c.close()
 
     def tweets_to_view(self, min_to_display, replies='all'):
         c = self.db.cursor()
-        if self.last_viewed==None:
-            self.last_viewed = '1970-01-01 00:00:00'
-        if self.last_digest==None:
-            self.last_digest = '1970-01-01 00:00:00'
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [self.last_viewed])
+        last_viewed = self.get_conf('last_viewed')
+        if last_viewed==None:
+            last_viewed = '1970-01-01 00:00:00'
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_viewed])
         rows = c.fetchall()
         number_to_fetch = min_to_display - len(rows)
         if number_to_fetch > 0:
-            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [self.last_viewed, number_to_fetch])
+            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
             rows1 = c.fetchall()
             rows.extend(rows1)
             rows.sort(lambda x,y: -cmp(x[3],y[3]))

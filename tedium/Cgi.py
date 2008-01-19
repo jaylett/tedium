@@ -194,20 +194,15 @@ class Driver:
                 print (u"<span class='tweet'>%s</span></li>" % self._htmlify(tweet['tweet'])).encode('utf-8')
             print "</ol>"
         
-        if self.tedium.last_digest!=None:
-            digestinfo = ' Digest emails appear to be running.'
-        else:
-            digestinfo = ''
-
         if replies=='digest':
             repliesinfo = 'Showing some replies. <a href="?replies=all&amp;last_viewed=%s&amp;last_digest=%s">Show all replies</a>.' % (last_viewed, last_digest)
         else:
             repliesinfo = 'Showing all replies. <a href="?replies=digest&amp;last_viewed=%s&amp;last_digest=%s">Show fewer replies</a>.' % (last_viewed, last_digest)
 
-        print (u"<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/%s'>%s</a>. %s%s</p>" % (self.tedium.username, self.tedium.username, repliesinfo, digestinfo)).encode('utf-8')
+        print (u"<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/%s'>%s</a>. %s</p>" % (self.tedium.username, self.tedium.username, repliesinfo)).encode('utf-8')
         print self._address()
         print "</body></html>"
         if not self.is_test and len(tweets)>0:
             max_published = max(map(lambda x: x['published'], tweets))
-            self.tedium.update_to_now('last_viewed', max_published)
-            self.tedium.update_to_now('last_digest', max_published)
+            self.tedium.set_conf('last_viewed', max_published)
+            self.tedium.set_conf('last_digest', max_published)

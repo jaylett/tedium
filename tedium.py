@@ -24,7 +24,6 @@
 # FIXME: assumes UTC coming out of twitter
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
-# FIXME: Tedium::last_viewed vs Tedium::get_conf('last_viewed') is unpleasant
 
 import tedium
 
