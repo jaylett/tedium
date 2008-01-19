@@ -300,7 +300,7 @@ class Tedium:
         c = self.db.cursor()
         if self.last_digest==None:
             self.last_digest = '1970-01-01 00:00:00'
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [self.last_digest])
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [self.last_digest])
         rows = c.fetchall()
         if len(rows)>0:
             digest = ''
@@ -343,8 +343,8 @@ class Tedium:
                 s.connect()
                 s.sendmail(email_address, [email_address], msg.as_string())
                 s.close()
-        self.update_to_now('last_digest')
-        self.db.commit() # superfluous as update_to_now() does this for us
+        max_published = max(map(lambda x: x[3], rows))
+        self.update_to_now('last_digest', max_published)
         c.close()
 
     def tweets_to_view(self, min_to_display, replies='all'):

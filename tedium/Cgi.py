@@ -132,5 +132,6 @@ class Driver:
         print self._address()
         print "</body></html>"
         if not self.is_test:
-            self.tedium.update_to_now('last_viewed')
-            self.tedium.update_to_now('last_digest')
+            max_published = max(map(lambda x: x['published'], tweets))
+            self.tedium.update_to_now('last_viewed', max_published)
+            self.tedium.update_to_now('last_digest', max_published)

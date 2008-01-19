@@ -22,7 +22,6 @@
 # FEATURE: CGI mechanisms for post & reply
 # FEATURE: CGI mechanism to toggle author_include_replies
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
-# FIXME: when we mark last_*, we use max(tweet_published) from too late
 # FIXME: assumes UTC coming out of twitter
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
