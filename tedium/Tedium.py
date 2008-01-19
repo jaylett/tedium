@@ -182,9 +182,9 @@ class Tedium:
                 published = self.process_tweet(tweet, c)
                 if published > max_published or max_published==None:
                     max_published = published
+            c.close()
             if max_published!=None:
                 self.set_conf('last_updated', max_published)
-            c.close()
             self.save_changes()
         except urllib2.URLError, e:
             if e.code==401:
@@ -371,6 +371,7 @@ class Tedium:
 
             max_published = max(map(lambda x: x[3], rows))
             self.set_conf('last_digest', max_published)
+            self.save_changes()
         c.close()
 
     def tweets_to_view(self, min_to_display, replies='all'):

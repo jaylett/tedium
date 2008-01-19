@@ -206,3 +206,4 @@ class Driver:
             max_published = max(map(lambda x: x['published'], tweets))
             self.tedium.set_conf('last_viewed', max_published)
             self.tedium.set_conf('last_digest', max_published)
+            self.tedium.save_changes()
