@@ -68,11 +68,64 @@ class Driver:
         text = re.sub(self.user_linkifier, '<a target="_new" href="http://twitter.com/\g<1>">\g<0></a>', text)
         return text
 
-    def do_get(self):
+    def _headers(self):
+        print "Content-Type: text/html; charset=utf-8\r\n"
+
+    def _html_head(self, title):
+        print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
+        print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>%s</title>" % title).encode('utf-8')
+        print self._stylesheet();
+        print "</head>"
+
+    def process_request(self):
+        """Process an HTTP request."""
+        self._auth()
+        cgitb.enable()
+        form = cgi.FieldStorage(keep_blank_values=True)
+
+        try:
+            method = os.environ.get('REQUEST_METHOD')=='GET'
+            if method == 'GET':
+                self.do_get(form)
+            elif method == 'POST':
+                self.do_post(form)
+            sys.exit(1)
+        except:
+            self._headers()
+            self._html_head('Error during processing')
+            print "<body><h1>Error</h1><p>You think I'm gonna give more detail than that? Are you crazy?</p></body></html>"
+
+    def do_post(self, form):
+        """Process a POST request."""
+        self._auth()
+        cgitb.enable()
+
+        if form.getfirst('set-author-include-replies')!=None:
+            # author-<aid> = <include|>
+            for ak in form.keys():
+                if ak.startswith('author-'):
+                    bits = ak.split('-')
+                    aid = int(bits[1])
+                    if form.getfirst(ak)=='show':
+                        include = 1
+                    else:
+                        include = 0
+                    self.tedium.update_author_include_replies(aid, include)
+                    
+            authors = form.getlist('author-include-replies')
+            self.tedium.save_changes()
+
+        print "Location: %s" % os.environ.get('HTTP_REFERER', 'http://tartarus.org/james/')
+
+    def do_get(self, form=None):
         """Process a GET request."""
         self._auth()
         cgitb.enable()
-        form = cgi.FieldStorage()
+        if form==None:
+            form = cgi.FieldStorage()
+
+        if os.environ.get('REQUEST_METHOD')=='POST':
+            self.do_post(form)
 
         # replies is one of 'all' or 'digest'
         # all shows all replies; digest has the same behaviour as for
@@ -96,11 +149,9 @@ class Driver:
         if not self.is_test and reset_digest!=None:
             self.tedium.update_to_now('last_digest', reset_digest)
 
-        print "Content-Type: text/html; charset=utf-8\r\n"
-        print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
-        print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Tweets for %s</title>" % self.tedium.username).encode('utf-8')
-        print self._stylesheet();
-        print "</head><body>"
+        self._headers()
+        self._html_head('Tweets for %s' % self.tedium.username)
+        print "<body>"
         tweets = self.tedium.tweets_to_view(40, replies) # 40 is min to display
         last_viewed = self.tedium.get_conf('last_viewed')
         last_digest = self.tedium.get_conf('last_digest')
@@ -116,7 +167,16 @@ class Driver:
                     rowstyle+=" notindigest"
                 if author['protected']:
                     rowstyle+=" protected"
-                print (u"<li class='%s'><span class='time'>%s</span> <span class='author'><a href='http://twitter.com/%s'>%s</a></span> <span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self._htmlify(tweet['tweet']))).encode('utf-8')
+                print (u"<li class='%s'><span class='time'>%s</span> " % (rowstyle, tweet['date'])).encode('utf-8')
+                #print (u"<span class='author'><a href='http://twitter.com/%s'>%s</a></span>" % (author['nick'], author['fn'])).encode('utf-8')
+                if author['include_replies']==1:
+                    a_r_flip = 'hide'
+                    a_r_flip_text = 'hide replies'
+                else:
+                    a_r_flip = 'show'
+                    a_r_flip_text = 'show replies'
+                print (u"<span class='author'><form method='post'><input type='hidden' name='author-%i' value='%s' /><a href='http://twitter.com/%s'>%s</a> [<input type='submit' name='set-author-include-replies' value='%s' />]</form></span>" % (author['id'], a_r_flip, author['nick'], author['fn'], a_r_flip_text)).encode('utf-8')
+                print (u"<span class='tweet'>%s</span></li>" % self._htmlify(tweet['tweet'])).encode('utf-8')
             print "</ol>"
         if self.tedium.last_digest!=None:
             digestinfo = ' Digest emails appear to be running.'

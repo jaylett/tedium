@@ -20,7 +20,6 @@
 # USA
 #
 # FEATURE: CGI mechanisms for post & reply
-# FEATURE: CGI mechanism to toggle author_include_replies
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
 # FIXME: assumes UTC coming out of twitter
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)

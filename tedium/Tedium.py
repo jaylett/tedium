@@ -232,12 +232,12 @@ class Tedium:
         u = self._author_cache.get(id)
         if u!=None:
             return u
-        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies FROM authors WHERE author_id=?", [int(id)])
+        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id FROM authors WHERE author_id=?", [int(id)])
         row = cursor.fetchone()
         if row==None:
             return None
         else:
-            u = { 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies': row[4] }
+            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies': row[4] }
             if row[3]:
                 u['protected'] = True
             else:
@@ -265,8 +265,26 @@ class Tedium:
         else:
             return row[0]
 
+    def save_changes(self):
+        """Save all changes that have been processed recently."""
+        self.db.commit()
+
+    def update_author_include_replies(self, aid, include):
+        """Set whether we should include replies to this author in digest mode."""
+        cursor = self.db.cursor()
+        cursor.execute("UPDATE authors SET author_include_replies=? WHERE author_id=?", (include, aid))
+        try:
+            del self._author_cache[aid]
+        except KeyError:
+            pass
+        cursor.close()
+
     def update_author(self, info, cursor):
         cursor.execute("UPDATE authors SET author_nick=?, author_fn=?, author_avatar=?, author_protected=? WHERE author_id=?", (info['screen_name'], info['name'], info['profile_image_url'], info['protected'], info['id']))
+        try:
+            del self._author_cache[info['id']]
+        except KeyError:
+            pass
         return int(info['id'])
 
     def make_author(self, info, cursor):
