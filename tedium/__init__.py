@@ -131,8 +131,8 @@ def main():
             else:
                 t.digest(args[0])
         elif os.environ.get('GATEWAY_INTERFACE')=='CGI/1.1':
-            cgi = Cgi.TediumCgi(t, is_test)
-            cgi.do_get()
+            driver = Cgi.Driver(t, is_test)
+            driver.do_get()
         else:
             # Get latest tweets (possibly prompt for configuration first)
             t.update()

@@ -25,7 +25,7 @@ import tedium
 
 import re, os, sys
 
-class TediumCgi:
+class Driver:
     """Tedium's CGI driver; construct with a Tedium object, then call do_get()."""
     def __init__(self, tedium, is_test=False):
         """Initialise driver with a given Tedium object."""
