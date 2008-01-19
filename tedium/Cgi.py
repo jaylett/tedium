@@ -23,7 +23,7 @@ Tedium's CGI driver.
 
 import tedium
 
-import re, os, sys
+import re, os, sys, cgi, cgitb
 
 class Driver:
     """Tedium's CGI driver; construct with a Tedium object, then call do_get()."""
@@ -33,7 +33,6 @@ class Driver:
         self.is_test = is_test
         self.linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
         self.user_linkifier = re.compile('@([A-Za-z0-9_]+)')
-        pass
 
     def _auth(self):
         if self.is_test:
@@ -63,7 +62,6 @@ class Driver:
             return ""
 
     def _htmlify(self, text):
-        import re
         # link anything using common URI
         text = re.sub(self.linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
         # link @username
@@ -73,13 +71,39 @@ class Driver:
     def do_get(self):
         """Process a GET request."""
         self._auth()
+        cgitb.enable()
+        form = cgi.FieldStorage()
+
+        # replies is one of 'all' or 'digest'
+        # all shows all replies; digest has the same behaviour as for
+        # digest emails, ie we show replies to *you* and to any contact
+        # in the tedium database marked for replies
+        reset_viewed = None
+        reset_digest = None
+        params = cgi.FieldStorage()
+        if form.has_key('replies'):
+            old_replies = self.tedium.get_conf('view_replies')
+            replies = form.getfirst('replies')
+            if replies!=old_replies:
+                self.tedium.set_conf('view_replies', replies)
+            reset_viewed = form.getfirst('last_viewed', None)
+            reset_digest = form.getfirst('last_digest', None)
+        else:
+            replies = self.tedium.get_conf('view_replies')
+
+        if not self.is_test and reset_viewed!=None:
+            self.tedium.update_to_now('last_viewed', reset_viewed)
+        if not self.is_test and reset_digest!=None:
+            self.tedium.update_to_now('last_digest', reset_digest)
 
         print "Content-Type: text/html; charset=utf-8\r\n"
         print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
         print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Tweets for %s</title>" % self.tedium.username).encode('utf-8')
         print self._stylesheet();
         print "</head><body>"
-        tweets = self.tedium.tweets_to_view(40) # 40 is min to display
+        tweets = self.tedium.tweets_to_view(40, replies) # 40 is min to display
+        last_viewed = self.tedium.get_conf('last_viewed')
+        last_digest = self.tedium.get_conf('last_digest')
 
         if len(tweets)>0:
             print "<ol>"
@@ -94,11 +118,17 @@ class Driver:
                     rowstyle+=" protected"
                 print (u"<li class='%s'><span class='time'>%s</span> <span class='author'><a href='http://twitter.com/%s'>%s</a></span> <span class='tweet'>%s</span></li>" % (rowstyle, tweet['date'], author['nick'], author['fn'], self._htmlify(tweet['tweet']))).encode('utf-8')
             print "</ol>"
-        if self.tedium.last_digest!=None and self.tedium.last_digest!=self.tedium.last_viewed:
+        if self.tedium.last_digest!=None:
             digestinfo = ' Digest emails appear to be running.'
         else:
             digestinfo = ''
-        print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. Including all replies.%s</p>" % (self.tedium.username, self.tedium.username, digestinfo)).encode('utf-8')
+
+        if replies=='digest':
+            repliesinfo = 'Showing some replies. <a href="?replies=all&amp;last_viewed=%s&amp;last_digest=%s">Show all replies</a>.' % (last_viewed, last_digest)
+        else:
+            repliesinfo = 'Showing all replies. <a href="?replies=digest&amp;last_viewed=%s&amp;last_digest=%s">Show fewer replies</a>.' % (last_viewed, last_digest)
+
+        print (u"<p><a href='http://twitter.com/'>Twitter</a> updates for <a href='http://twitter.com/%s'>%s</a>. %s%s</p>" % (self.tedium.username, self.tedium.username, repliesinfo, digestinfo)).encode('utf-8')
         print self._address()
         print "</body></html>"
         if not self.is_test:

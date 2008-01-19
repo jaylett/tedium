@@ -28,6 +28,8 @@ import email.Charset
 
 import tedium
 
+DB_VERSION = 3
+
 class Tedium:
     def __init__(self, configpath=None):
         if configpath==None:
@@ -89,15 +91,15 @@ class Tedium:
             cursor.execute("DROP TABLE IF EXISTS tweets")
             cursor.execute("DROP TABLE IF EXISTS authors")
             self._create_if_no_metadata_table(cursor)
-            cursor.execute("INSERT INTO metadata(version) VALUES (?)", [tedium.DB_VERSION])
+            cursor.execute("INSERT INTO metadata(version) VALUES (?)", [DB_VERSION])
             self._initialise_database(cursor)
         else:
-            if row[0] < tedium.DB_VERSION:
+            if row[0] < DB_VERSION:
                 print "Upgrading db."
                 self._upgrade_database(row[0], cursor)
 
     def _create_if_no_metadata_table(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20))" % tedium.DB_VERSION)
+        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20))" % DB_VERSION)
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
@@ -143,6 +145,9 @@ class Tedium:
         if old_version<2:
             cursor.execute("ALTER TABLE authors ADD COLUMN author_include_replies INTEGER(1) NOT NULL DEFAULT 0")
             cursor.execute("UPDATE metadata SET version=2")
+        if old_version<3:
+            cursor.execute("ALTER TABLE metadata ADD COLUMN view_replies VARCHAR(10)")
+            cursor.execute("UPDATE metadata SET version=3, view_replies='all'")
 
     def update(self):
         if self.last_updated==None:
@@ -174,6 +179,30 @@ class Tedium:
                 return
             #print e.read()
             raise tedium.TediumError('Could not fetch updates from Twitter', e)
+
+    def get_conf(self, confname):
+        """Get a config option."""
+        cursor = self.db.cursor()
+        cursor.execute("SELECT %s FROM metadata" % confname)
+        row = cursor.fetchone()
+        value = row[0]
+        cursor.close()
+        return value
+
+    def set_conf(self, confname, value):
+        """Set a config option."""
+        cursor = self.db.cursor()
+        cursor.execute("UPDATE metadata SET %s=?" % confname, [value])
+        cursor.close()
+
+    def get_last_viewed(self):
+        """Get the time tweets were last viewed (as opposed to digested)."""
+        cursor = self.db.cursor()
+        cursor.execute("SELECT last_viewed FROM metadata")
+        row = cursor.fetchone()
+        last_viewed = row[0]
+        cursor.close()
+        return last_viewed
 
     # not strictly 'now', but the most recent tweet we've found
     # note that this can go wrong if you use the automatic version
@@ -318,7 +347,7 @@ class Tedium:
         self.db.commit() # superfluous as update_to_now() does this for us
         c.close()
 
-    def tweets_to_view(self, min_to_display):
+    def tweets_to_view(self, min_to_display, replies='all'):
         c = self.db.cursor()
         if self.last_viewed==None:
             self.last_viewed = '1970-01-01 00:00:00'
@@ -334,8 +363,19 @@ class Tedium:
             rows.sort(lambda x,y: -cmp(x[3],y[3]))
         out_rows = []
         for row in rows:
+            # ignore replies not to us
+            text = row[1]
+            if replies=='digest' and text[0]=='@':
+                if text[1:len(self.username)+1]!=self.username:
+                    replyname = text[1:].replace(':', ' ').split()[0]
+                    if replyname!='':
+                        a = self.get_author_by_username(replyname, c)
+                        if a==None or not a['include_replies']:
+                            continue
+                    else:
+                        continue
             out_rows.append({ 'date': row[0],
-                              'tweet': row[1],
+                              'tweet': text,
                               'author': self.get_author(row[2], c),
                               'published': row[3]})
         c.close()
