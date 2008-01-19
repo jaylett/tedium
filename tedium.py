@@ -19,11 +19,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 #
-# FEATURE: CGI mechanisms for post & reply
+# FEATURE: CGI mechanism for reply (just some Javascript?)
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
 # FIXME: assumes UTC coming out of twitter
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
+# FIXME: Tedium::last_viewed vs Tedium::get_conf('last_viewed') is unpleasant
 
 import tedium
 

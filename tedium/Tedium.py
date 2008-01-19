@@ -28,7 +28,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 3
+DB_VERSION = 4
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -148,8 +148,25 @@ class Tedium:
         if old_version<3:
             cursor.execute("ALTER TABLE metadata ADD COLUMN view_replies VARCHAR(10)")
             cursor.execute("UPDATE metadata SET version=3, view_replies='all'")
+        if old_version<4:
+            cursor.execute("ALTER TABLE metadata ADD COLUMN current_status VARCHAR(140)")
+            cursor.execute("UPDATE metadata SET version=4")
 
     def update(self):
+        # get our latest tweet
+        try:
+            uri = "https://twitter.com/users/show/%s.json" % self.username
+            f = urllib2.urlopen(uri)
+            data = f.read()
+            f.close()
+            j = json.JsonReader()
+            status = j.read(data)
+            my_status = status.get('status', {}).get('text')
+            if my_status!=None:
+                self.set_conf('current_status', my_status)
+        except urllib2.URLError:
+            pass
+        
         if self.last_updated==None:
             uri = 'https://twitter.com/statuses/friends_timeline.json'
         else:
@@ -161,13 +178,12 @@ class Tedium:
             #f = open('test.json', 'r')
             data = f.read()
             f.close()
-            j = json.JsonReader()
             tweets = j.read(data)
             for tweet in tweets:
                 self.process_tweet(tweet, c)
             self.update_to_now('last_updated')
-            self.db.commit() # superfluous as update_to_now does this for us
             c.close()
+            self.save_changes()
         except urllib2.URLError, e:
             if e.code==401:
                 self.delete_credentials(c)
@@ -195,6 +211,22 @@ class Tedium:
         cursor.execute("UPDATE metadata SET %s=?" % confname, [value])
         cursor.close()
 
+    def set_status(self, new_status):
+        """Send a tweet."""
+        try:
+            uri = 'https://twitter.com/statuses/update.json'
+            f = urllib2.urlopen(uri, 'status=%s' % urllib.quote_plus(new_status))
+            data = f.read()
+            f.close()
+            j = json.JsonReader()
+            status = j.read(data)
+            if status['text']==new_status:
+                self.set_conf('current_status', new_status)
+            else:
+                raise tedium.TediumError("Came back with different status: %s" % status['text'])
+        except Exception, e:
+            raise tedium.TediumError("Could not post new tweet", e)
+
     def get_last_viewed(self):
         """Get the time tweets were last viewed (as opposed to digested)."""
         cursor = self.db.cursor()
@@ -217,13 +249,6 @@ class Tedium:
                 now = row[0]
         if now!=None:
             cursor.execute("UPDATE metadata SET %s=?" % field, [now])
-            if cursor.rowcount==0:
-                cursor.execute("INSERT INTO metadata (%s) VALUES (?)" % field, [now])
-            else:
-                cursor.execute("SELECT %s FROM metadata LIMIT 1" % field)
-                rows = cursor.fetchall()
-                if len(rows)==0:
-                    cursor.execute("INSERT INTO metadata (%s) VALUES (?)" % field, [now])
         self.db.commit()
         cursor.close()
 

@@ -1,15 +1,20 @@
-body { font-family: Verdana, sans-serif; }
+body { font-family: Verdana, sans-serif; color: black; background-color: white; }
 ol { list-style: none inside; margin: 0; padding: 0 }
-ol:after { content: "Key: green=new since last digest, blue=new since last view."; display: block; margin-top: 1em; }
+ol:after { content: "Key: green=new since last digest, blue=new since last view; red=statuses protected for this user."; display: block; margin-top: 1em; }
 li:after { content: " "; display: block; clear: both; }
 li { clear: both; border-bottom: 1px dashed black; min-height: 1.2em; }
 .time { width: 5%; valign: top; float: left; padding-left: 0.2em; }
 .author { width: 20%; valign: top; float: left; }
-.protected, .protected a { color: rgb(200,50,100); }
+.protected { color: rgb(200,50,100); }
 .author:after { content: ": "; }
 .tweet { float: left; width: 70%; padding-left: 0.2em; }
 .new { background: rgb(100,150,200); }
 .notindigest { background: rgb(100,200,150); }
 address { font-size: 80%; font-style: none; border-top: 1px solid black; }
 form { display: inline; padding: 0; margin: 0; }
-input { border: none; background: none; margin: 0; padding: 0; cursor: pointer; }
+a { color: blue; }
+a:visited { color: purple; }
+input[type=submit] { border: none; background: none; margin: 0; padding: 0; cursor: pointer; color: blue; }
+#status-form { border-bottom: 1px solid black; padding-bottom: 1em; margin-bottom: 1em; display: block; }
+#status-form input { border: none; font-size: 100%; border: 1px solid white; }
+#status-form input:focus, #status-form input:hover { border: 1px solid black; }

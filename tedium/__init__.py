@@ -68,7 +68,7 @@ import tedium.Tedium, tedium.Cgi
 
 __all__ = ['Cgi', 'Tedium']
 
-VERSION = '0.2'
+VERSION = '0.3'
 #DEFAULT_DIGEST_FORMAT = u'(%(time)5.5s) %(nick)12.12s: %(tweet)-48.48s \u00bb\n'
 #DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(nick)12.12s: %(tweet)s\n'
 DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(fn)s: \n%(wrapped_tweet)s\n\n'
@@ -131,7 +131,7 @@ def main():
                 t.digest(args[0])
         elif os.environ.get('GATEWAY_INTERFACE')=='CGI/1.1':
             driver = Cgi.Driver(t, is_test)
-            driver.do_get()
+            driver.process_request()
         else:
             # Get latest tweets (possibly prompt for configuration first)
             t.update()
