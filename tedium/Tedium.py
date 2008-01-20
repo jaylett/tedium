@@ -152,12 +152,12 @@ class Tedium:
 
     def update(self):
         # get our latest tweet
+        j = json.JsonReader()
         try:
             uri = "https://twitter.com/users/show/%s.json" % self.username
             f = urllib2.urlopen(uri)
             data = f.read()
             f.close()
-            j = json.JsonReader()
             status = j.read(data)
             my_status = status.get('status', {}).get('text')
             if my_status!=None:
