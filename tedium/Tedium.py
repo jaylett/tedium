@@ -325,7 +325,7 @@ class Tedium:
     def digest(self, email_address, real=None):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_digest])
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
         rows = c.fetchall()
         if len(rows)>0:
             digest = ''
