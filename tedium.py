@@ -24,6 +24,12 @@
 # FIXME: assumes UTC coming out of twitter
 # FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
+#
+# On a Mac:
+#
+# download python-json and extract json.py into this directory (this is an
+# utter bitch as it isn't packaged for easy_install)
+# sudo easy_install pysqlite
 
 import tedium
 
