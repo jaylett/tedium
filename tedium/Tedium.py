@@ -22,6 +22,11 @@
 import urllib, urllib2, os, os.path, sys, json
 import datetime, time, smtplib, textwrap, pwd, getopt
 
+try:
+    from xml.etree.ElementTree import fromstring as etree_fromstring # python 2.5
+except:
+    from elementtree.ElementTree import fromstring as etree_fromstring # python 2.4
+
 from pysqlite2 import dbapi2 as sqlite
 from email.MIMEText import MIMEText
 import email.Charset
@@ -97,7 +102,7 @@ class Tedium:
                 self._upgrade_database(row[0], cursor)
 
     def _create_if_no_metadata_table(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20))" % DB_VERSION)
+        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10))" % DB_VERSION)
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
@@ -166,19 +171,22 @@ class Tedium:
             pass
         
         if self.last_updated==None:
-            uri = 'https://twitter.com/statuses/friends_timeline.json'
+            uri = 'https://twitter.com/statuses/friends_timeline.xml'
         else:
             # HTTP formatted date
-            uri = 'https://twitter.com/statuses/friends_timeline.json?since=%s' % urllib.quote_plus(self.last_updated)
+            uri = 'https://twitter.com/statuses/friends_timeline.xml?since=%s' % urllib.quote_plus(self.last_updated)
         try:
             c = self.db.cursor()
             f = urllib2.urlopen(uri)
-            #f = open('test.json', 'r')
             data = f.read()
             f.close()
-            tweets = j.read(data)
+            tweets = etree_fromstring(data)
             max_published = None
+            if tweets.tag!='statuses':
+              raise tedium.TediumError('Twitter response was not an XML doc with root statuses')
             for tweet in tweets:
+                if tweet.tag!='status':
+                  raise tedium.TedimuError('Twitter response was not a list of statuses')
                 published = self.process_tweet(tweet, c)
                 if published > max_published or max_published==None:
                     max_published = published
@@ -313,7 +321,17 @@ class Tedium:
         return timestring
         #print "Inserted tweet from %i" % author_id
 
-    def process_tweet(self, tweet, cursor):
+    def _extract_from_xml(self, xml):
+        res = {}
+        for e in xml:
+          if len(e)==0:
+            res[e.tag] = e.text
+          else:
+            res[e.tag] = self._extract_from_xml(e)
+        return res
+
+    def process_tweet(self, tweet_xml, cursor):
+        tweet = self._extract_from_xml(tweet_xml)
         #print tweet
         author_id = self.find_author(tweet['user']['id'], cursor)
         if author_id==None:
