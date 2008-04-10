@@ -31,7 +31,7 @@ class Driver:
         """Initialise driver with a given Tedium object."""
         self.tedium = tedium
         self.is_test = is_test
-        self.linkifier = re.compile('[^ :/?#]+://[^ /?#]*[^ ?#]*(\?[^ #]*)?(#[^ ]*)?')
+        self.linkifier = re.compile('[a-zA-Z]+://[a-zA-Z0-9\.-]*[^ )?#]*(\?[^ )#]*)?(#[^ )]*)?')
         self.user_linkifier = re.compile('@([A-Za-z0-9_]+)')
 
     def _auth(self):
