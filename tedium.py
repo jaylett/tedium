@@ -21,9 +21,11 @@
 #
 # FEATURE: CGI mechanism for reply (just some Javascript?)
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
+# FEATURE: when posting tweet, preserve last_digest/last_viewed
+# FEATURE: option on authors to show all replies *from* them
 # FIXME: assumes UTC coming out of twitter
-# FIXME: change to Atom to avoid HTML entities (JSON is lovely, twitter not)
 # FIXME: should probably store the id of a tweet as the tweet PK
+# QUESTION: does @<username> count as reply when not at start of tweet?
 #
 # On a Mac:
 #
