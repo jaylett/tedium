@@ -157,13 +157,15 @@ class Tedium:
 
     def update(self):
         # get our latest tweet
-        j = json.JsonReader()
         try:
-            uri = "https://twitter.com/users/show/%s.json" % self.username
+            uri = "https://twitter.com/users/show/%s.xml" % self.username
             f = urllib2.urlopen(uri)
             data = f.read()
             f.close()
-            status = j.read(data)
+            status = etree_fromstring(data)
+            if status.tag!='user':
+                raise tedium.TediumError('Twitter response was not an XML doc with root user')
+            status = self._extract_from_xml(status)
             my_status = status.get('status', {}).get('text')
             if my_status!=None:
                 self.set_conf('current_status', my_status)
@@ -230,10 +232,10 @@ class Tedium:
             f = urllib2.urlopen(uri, 'status=%s' % urllib.quote_plus(new_status))
             data = f.read()
             f.close()
-            response = etree_fromstring(data)
-            if response.tag!='status':
+            status = etree_fromstring(data)
+            if status.tag!='status':
                 raise tedium.TediumError('Twitter response was not an XML doc with root status')
-            status = self._extract_from_xml(response)
+            status = self._extract_from_xml(status)
             if status['text']==new_status:
                 self.set_conf('current_status', new_status)
                 self.save_changes()
