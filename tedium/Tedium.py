@@ -226,12 +226,14 @@ class Tedium:
     def set_status(self, new_status):
         """Send a tweet."""
         try:
-            uri = 'https://twitter.com/statuses/update.json'
+            uri = 'https://twitter.com/statuses/update.xml'
             f = urllib2.urlopen(uri, 'status=%s' % urllib.quote_plus(new_status))
             data = f.read()
             f.close()
-            j = json.JsonReader()
-            status = j.read(data)
+            response = etree_fromstring(data)
+            if response.tag!='status':
+                raise tedium.TediumError('Twitter response was not an XML doc with root status')
+            status = self._extract_from_xml(response)
             if status['text']==new_status:
                 self.set_conf('current_status', new_status)
                 self.save_changes()
