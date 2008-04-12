@@ -1,6 +1,5 @@
 body { font-family: Verdana, sans-serif; color: black; background-color: white; }
 ol { list-style: none inside; margin: 0; padding: 0 }
-ol:after { content: "Key: green=new since last digest, blue=new since last view; red=statuses protected for this user."; display: block; margin-top: 1em; }
 li:after { content: " "; display: block; clear: both; }
 li { clear: both; border-bottom: 1px dashed black; min-height: 1.2em; }
 .time { width: 5%; valign: top; float: left; padding-left: 0.2em; }
