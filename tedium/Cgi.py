@@ -63,16 +63,10 @@ class Driver:
             return
         if os.environ.get('REMOTE_USER')!=self.tedium.username:
             print "Content-Type: text/html; charset=utf-8\r\n"
-            print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "">'
-            print "<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>Permission denied</title>"
-            print self._stylesheet();
-            print "</head><body><h1>Permission denied</h1><p>You <em>must</em> set tedium up so it's sitting behind HTTP authentication. If you know what you're doing and disagree, change the source code. If not, set it up. I can't easily police whether you only access it encrypted, or across otherwise-secured transports, so there you're on your own. Sorry.</p>"
-            print self._address()
-            print "</body></html>"
+            tmpl = Template('auth_required', FileSystemLoader(self.templates_dir))
+            c = Context({'tedium': self.tedium, 'cssfile':self._ponder_stylesheet()})
+            print tmpl.render(c).encode('utf-8')
             sys.exit(0)
-
-    def _address(self):
-        return (u"<address>tedium v%s copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>" % (tedium.VERSION,)).encode('utf-8')
 
     def _ponder_stylesheet(self):
         cssfile = None
@@ -81,22 +75,6 @@ class Driver:
                 cssfile = file
                 break
         return cssfile
-
-    def _stylesheet(self):
-        cssfile = self._ponder_stylesheet()
-        if cssfile!=None:
-            return "<link type='text/css' rel='stylesheet' href='%s' />" % cssfile
-        else:
-            return ""
-
-    def _headers(self):
-        print "Content-Type: text/html; charset=utf-8\r\n"
-
-    def _html_head(self, title):
-        print '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
-        print (u"<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'><head><title>%s</title>" % title).encode('utf-8')
-        print self._stylesheet();
-        print "</head>"
 
     def process_request(self):
         """Process an HTTP request."""
@@ -170,79 +148,35 @@ class Driver:
         if not self.is_test and reset_digest!=None:
             self.tedium.set_conf('last_digest', reset_digest)
 
-        if form.has_key('out') and form.getfirst('out')=='jinja':
-            jinja = True
-        else:
-            jinja = False
-
-        self._headers()
-        if not jinja:
-            self._html_head('Tweets for %s' % self.tedium.username)
-            print "<body>"
+        print "Content-Type: text/html; charset=utf-8\r\n"
         last_viewed = self.tedium.get_conf('last_viewed')
         last_digest = self.tedium.get_conf('last_digest')
         tweets = self.tedium.tweets_to_view(20, replies) # min to display
 
         my_status = self.tedium.get_conf('current_status')
-        if not jinja and my_status!=None:
-            print (u"<form id='status-form' method='post'><label for='status'>Current status</label>: <input type='text' name='status' value='%s' id='status' width='140' size='140' /><input type='submit' name='update-status' value='&gt;&gt; Update!' /></form>" % (safe_attribute(my_status))).encode('utf-8')
 
         if len(tweets)>0:
-            if not jinja:
-                print "<ol>"
             for tweet in tweets:
                 author = tweet['author']
-                rowstyle=""
                 if tweet['published']>last_viewed:
                     tweet['_is_new'] = True
-                    rowstyle+=" new"
                 if tweet['published']>last_digest:
                     tweet['_is_notindigest'] = True
-                    rowstyle+=" notindigest"
                 if author['protected']:
                     tweet['_is_protected'] = True
-                    rowstyle+=" protected"
-                if not jinja:
-                    print (u"<li class='%s'><span class='time'>%s</span> " % (rowstyle, tweet['date'])).encode('utf-8')
-                if author['is_me']:
-                    if not jinja:
-                        print (u"<span class='author'><a href='http://twitter.com/%s'>%s</a></span>" % (author['nick'], author['fn'])).encode('utf-8')
-                else:
-                    if author['include_replies_to']==1:
-                        a_r_flip = 'hide'
-                        a_r_flip_text = 'hide replies'
-                    else:
-                        a_r_flip = 'show'
-                        a_r_flip_text = 'show replies'
-                    if not jinja:
-                        print (u"<span class='author'><form method='post'><input type='hidden' name='author-%i' value='%s' /><a href='http://twitter.com/%s'>%s</a> [<input type='submit' name='set-author-include-replies-to' value='%s' />]</form></span>" % (author['id'], a_r_flip, author['nick'], author['fn'], a_r_flip_text)).encode('utf-8')
-                if not jinja:
-                    print (u"<span class='tweet'>%s</span></li>" % htmlify(tweet['tweet'])).encode('utf-8')
-            if not jinja:
-                print "</ol>"
 
-        if not jinja:
-            if replies=='digest':
-                repliesinfo = 'Showing some replies. <a href="?replies=all&amp;last_viewed=%s&amp;last_digest=%s">Show all replies</a>.' % (last_viewed, last_digest)
-            else:
-                repliesinfo = 'Showing all replies. <a href="?replies=digest&amp;last_viewed=%s&amp;last_digest=%s">Show fewer replies</a>.' % (last_viewed, last_digest)
-
-            print (u"<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/%s'>%s</a>. %s</p>" % (self.tedium.username, self.tedium.username, repliesinfo)).encode('utf-8')
-            print self._address()
-            print "</body></html>"
-
-        if jinja:
-            tmpl = Template('main', FileSystemLoader(self.templates_dir))
-            c = Context({
-                'my_status': my_status,
-                'tedium': self.tedium,
-                'tweets': tweets,
-                'last_viewed': last_viewed,
-                'last_digest': last_digest,
-                'replies': replies,
-                'cssfile': self._ponder_stylesheet()
-                })
-            print tmpl.render(c).encode('utf-8')
+        tmpl = Template('main', FileSystemLoader(self.templates_dir))
+        c = Context({
+            'my_status': my_status,
+            'tedium': self.tedium,
+            'tweets': tweets,
+            'last_viewed': last_viewed,
+            'last_digest': last_digest,
+            'replies': replies,
+            'cssfile': self._ponder_stylesheet()
+            })
+        print tmpl.render(c).encode('utf-8')
+        
         if not self.is_test and len(tweets)>0:
             max_published = max(map(lambda x: x['published'], tweets))
             self.tedium.set_conf('last_viewed', max_published)

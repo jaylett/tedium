@@ -1,15 +1,8 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'>
-  <head>
-    <title>Tweets for {{tedium.username | escapexml}}</title>
-{% if cssfile %}<link type='text/css' rel='stylesheet' href='{{cssfile}}' />{% endif %}
-  </head>
-<!--
-# my_status -- needs safe_attribute
-# tweets -- tweets[x].tweet needs _htmlify
--->
+{% extends "base" %}
 
-  <body>
+{% block "title" %}Tweets for {{tedium.username | escapexml}}{% endblock %}
+
+{% block "content" %}
     <form id='status-form' method='post'>
       <label for='status'>Current status</label>:
       <input type='text' name='status' value='{{my_status | safe_attribute}}' id='status' width='140' size='140' />
@@ -37,7 +30,4 @@ Showing all replies. <a href='?replies=digest&amp;last_viewed={{ last_viewed }}&
 {% endif %}
 </p>
 
-<address><a href='http://tartarus.org/james/computers/tedium/'>tedium</a> v{{ tedium.VERSION }} copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>
-
-  </body>
-</html>
+{% endblock %}
