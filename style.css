@@ -12,7 +12,9 @@ address { font-size: 80%; font-style: none; border-top: 1px solid black; }
 form { display: inline; padding: 0; margin: 0; font-size: 80%; }
 a { color: blue; }
 a:visited { color: purple; }
-input[type=submit] { border: none; background: none; margin: 0; padding: 0; cursor: pointer; color: blue; font-size: 100%; }
-#status-form { border-bottom: 1px solid black; padding-bottom: 1em; margin-bottom: 1em; display: block; }
+input[type=submit] { border: none; margin: 0; padding: 0; cursor: pointer; color: blue; font-size: 100%; background: transparent; }
+input[type=submit].replies-option-enabled { background: url("icons/tick.png") no-repeat right; min-height: 20px; padding-right: 20px; }
+input[type=submit].replies-option-disabled { background: url("icons/cross.png") no-repeat right; min-height: 20px; padding-right: 20px; }
+#status-form { border-bottom: 1px solid black; padding-bottom: 1em; margin-bottom: 1em; display: block; font-size: 100%; }
 #status-form input { border: none; font-size: 100%; border: 1px solid white; }
 #status-form input:focus, #status-form input:hover { border: 1px solid black; }

@@ -17,18 +17,18 @@
 {% if tweet._is_protected%}protected{% endif %}'><span
 
 class='time'>{{ tweet.date }}</span><span
-class='author'><a href='http://twitter.com/{{ tweet.author.nick | escapexml }}'>{{ tweet.author.fn | escapexml }}</a>{% if not tweet.author.is_me %}
-<form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_to equals 1 %}hide{% else %}show{% endif %}' />[<input type='submit' name='set-author-include-replies-to' value='{% if tweet.author.include_replies_to equals 1 %}hide to{% else %}show to{% endif %}' />]</form>
-<form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_from equals 1 %}hide{% else %}show{% endif %}' />[<input type='submit' name='set-author-include-replies-from' value='{% if tweet.author.include_replies_from equals 1 %}hide from{% else %}show from{% endif %}' />]</form>
+class='author'><a title='{{ tweet.author.fn | safe_attribute }}' href='http://twitter.com/{{ tweet.author.nick | safe_attribute }}'>{{ tweet.author.nick | escapexml }}</a>{% if not tweet.author.is_me %}
+<form method='post'>replies: <input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_to equals 1 %}hide{% else %}show{% endif %}' /><input class='replies-option-{% if tweet.author.include_replies_to equals 1 %}enabled{% else %}disabled{% endif %}' type='submit' name='set-author-include-replies-to' value='to' /></form>
+<form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_from equals 1 %}hide{% else %}show{% endif %}' /><input class='replies-option-{% if tweet.author.include_replies_from equals 1 %}enabled{% else %}disabled{% endif %}' type='submit' name='set-author-include-replies-from' value='from' /></form>
 {% endif %}</span><span class='tweet'>{{ tweet.tweet | escapexml | htmlify }}</span></li>
 {% endfor %}
 </ol>
 
 <p>
-Key: <span class='notindigest'>new since last digest</span>, <span class='new'>new since last view</span>, <span class='protected'>statuses protected for this user</span>.
+Key: <span class='notindigest'>new since last digest</span>, <span class='new'>new since last view</span>, <span class='protected'>statuses protected for this user</span>. <img width='16' height='16' alt='tick' src='icons/tick.png' /> and <img width='16' height='16' alt='cross' src='icons/cross.png' /> indicate the current states, ie whether replies to and from the author in question are currently being shown (click to toggle).
 </p>
 
-<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/{{ tedium.username | escapexml }}'>{{ tedium.username | escapexml }}</a>.
+<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/{{ tedium.username | safe_attribute }}'>{{ tedium.username | escapexml }}</a>.
 {% if replies equals 'digest' %}
 Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}'>Show all replies</a>.
 {% else %}
