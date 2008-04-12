@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 4
+DB_VERSION = 5
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -98,7 +98,7 @@ class Tedium:
             self._initialise_database(cursor)
         else:
             if row[0] < DB_VERSION:
-                print "Upgrading db."
+                #print "Upgrading db."
                 self._upgrade_database(row[0], cursor)
 
     def _create_if_no_metadata_table(self, cursor):
@@ -106,7 +106,7 @@ class Tedium:
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0)")
         self._configure(cursor)
 
     def reconfigure(self):
@@ -154,6 +154,9 @@ class Tedium:
         if old_version<4:
             cursor.execute("ALTER TABLE metadata ADD COLUMN current_status VARCHAR(140)")
             cursor.execute("UPDATE metadata SET version=4")
+        if old_version<5:
+            cursor.execute("ALTER TABLE authors ADD COLUMN author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0")
+            cursor.execute("UPDATE metadata SET version=5")
 
     def update(self):
         # get our latest tweet
@@ -251,16 +254,20 @@ class Tedium:
         u = self._author_cache.get(id)
         if u!=None:
             return u
-        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id FROM authors WHERE author_id=?", [int(id)])
+        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id, author_include_replies_from FROM authors WHERE author_id=?", [int(id)])
         row = cursor.fetchone()
         if row==None:
             return None
         else:
-            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies': row[4] }
-            if row[3]:
+            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies_to': row[4], 'include_replies_from': row[6] }
+            if row[3]=='true':
                 u['protected'] = True
             else:
                 u['protected'] = False
+            if u['nick'] == self.username:
+                u['is_me'] = True
+            else:
+                u['is_me'] = False
             self._author_cache[id] = u
             return u
 
@@ -288,10 +295,20 @@ class Tedium:
         """Save all changes that have been processed recently."""
         self.db.commit()
 
-    def update_author_include_replies(self, aid, include):
+    def update_author_include_replies_to(self, aid, include):
         """Set whether we should include replies to this author in digest mode."""
         cursor = self.db.cursor()
         cursor.execute("UPDATE authors SET author_include_replies=? WHERE author_id=?", (include, aid))
+        try:
+            del self._author_cache[aid]
+        except KeyError:
+            pass
+        cursor.close()
+
+    def update_author_include_replies_from(self, aid, include):
+        """Set whether we should include replies from this author in digest mode."""
+        cursor = self.db.cursor()
+        cursor.execute("UPDATE authors SET author_include_replies_from=? WHERE author_id=?", (include, aid))
         try:
             del self._author_cache[aid]
         except KeyError:
@@ -360,7 +377,7 @@ class Tedium:
                         replyname = text[1:].replace(':', ' ').split()[0]
                         if replyname!='':
                             a = self.get_author_by_username(replyname, c)
-                            if a==None or not a['include_replies']:
+                            if a==None or not a['include_replies_to']:
                                 continue
                         else:
                             continue
@@ -418,7 +435,7 @@ class Tedium:
                     replyname = text[1:].replace(':', ' ').split()[0]
                     if replyname!='':
                         a = self.get_author_by_username(replyname, c)
-                        if a==None or not a['include_replies']:
+                        if a==None or not a['include_replies_to']:
                             continue
                     else:
                         continue
