@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'>
+  <head>
+    <title>Tweets for {{tedium.username | escapexml}}</title>
+{% if cssfile %}<link type='text/css' rel='stylesheet' href='{{cssfile}}' />{% endif %}
+  </head>
+<!--
+# my_status -- needs safe_attribute
+# tweets -- tweets[x].tweet needs _htmlify
+-->
+
+  <body>
+    <form id='status-form' method='post'>
+      <label for='status'>Current status</label>:
+      <input type='text' name='status' value='{{my_status | safe_attribute}}' id='status' width='140' size='140' />
+      <input type='submit' name='update-status' value='&gt;&gt; Update!' />
+    </form>
+
+    <ol>
+{% for tweet in tweets %}
+<li class='
+{% if tweet._is_new %}new{% endif %}
+{% if tweet._is_notindigest %}notindigest{% endif %}
+{% if tweet._is_protected%}protected{% endif %}'><span class='time'>{{ tweet.date }}</span>{% if tweet.author.is_me %}<span class='author'><a href='http://twitter.com/{{ tweet.author.nick | escapexml }}'>{{ tweet.author.fn | escapexml }}</a></span>{% else %}<span class='author'><form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_to equals 1 %}hide{% else %}show{% endif %}' /><a href='http://twitter.com/{{ tweet.author.nick | escapexml }}'>{{ tweet.author.fn | escapexml }}</a> [<input type='submit' name='set-author-include-replies-to' value='{% if tweet.author.include_replies_to equals 1 %}hide replies{% else %}show replies{% endif %}' />]</form></span>{% endif %}<span class='tweet'>{{ tweet.tweet | escapexml | htmlify }}</span></li>
+{% endfor %}
+</ol>
+
+<p>
+Key: <span class='notindigest'>new since last digest</span>, <span class='new'>new since last view</span>, <span class='protected'>statuses protected for this user</span>.
+</p>
+
+<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http:/twitter.com/{{ tedium.username | escapexml }}'>{{ tedium.username | escapexml }}</a>.
+{% if replies equals 'digest' %}
+Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}'>Show all replies</a>.
+{% else %}
+Showing all replies. <a href='?replies=digest&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}'>Show fewer replies</a>.
+{% endif %}
+</p>
+
+<address><a href='http://tartarus.org/james/computers/tedium/'>tedium</a> v{{ tedium.VERSION }} copyright <a href='http://tartarus.org/james/'>James Aylett</a>.</address>
+
+  </body>
+</html>
