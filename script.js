@@ -18,7 +18,10 @@ function tedium_funkify() {
 	if (check(elements[i], 'author-name')) {
 	    current_author = '';
 	    for (var j=0; j < elements[i].childNodes.length; j++) {
-		current_author = current_author + elements[i].childNodes[j].nodeValue;
+		var t = elements[i].childNodes[j].nodeValue;
+		if (t!=null) {
+		    current_author = current_author + t;
+		}
 	    }
 	}
 	if (check(elements[i], 'tweet')) {
@@ -33,5 +36,16 @@ function tedium_funkify() {
 	    elements[i].insertBefore(reply, elements[i].firstChild);
 	}
     }
+    var element = document.getElementById('key');
+    var n = document.createTextNode(' Clicking on ');
+    element.appendChild(n);
+    n = document.createElement('img');
+    n.width = 16;
+    n.height = 16;
+    n.alt = 'arrow';
+    n.src = 'icons/arrow_right.png';
+    element.appendChild(n);
+    n = document.createTextNode(' starts a reply to that tweet.');
+    element.appendChild(n);
 };
 tedium_funkify();
