@@ -47,8 +47,12 @@ def safe_attribute(text):
     text = text.replace('>', '&gt;')
     return text
 
+def max_tweet_length(text):
+    return 140 - len(text) - 2 # ': '
+
 stdlib.register_filter('htmlify', stringfilter(htmlify))
 stdlib.register_filter('safe_attribute', stringfilter(safe_attribute))
+stdlib.register_filter('max_tweet_length', stringfilter(max_tweet_length))
 
 class Driver:
     """Tedium's CGI driver; construct with a Tedium object, then call do_get()."""
@@ -94,9 +98,10 @@ class Driver:
         """Process a POST request."""
         self._auth()
         cgitb.enable()
+        do_save = False
 
         if form.getfirst('set-author-include-replies-to')!=None:
-            # author-<aid> = <include|>
+            # author-<aid> = <show|>
             for ak in form.keys():
                 if ak.startswith('author-'):
                     bits = ak.split('-')
@@ -106,10 +111,23 @@ class Driver:
                     else:
                         include = 0
                     self.tedium.update_author_include_replies_to(aid, include)
-                    
-            authors = form.getlist('author-include-replies-to')
+            do_save = True
+        if form.getfirst('set-author-include-replies-from')!=None:
+            # author-<aid> = <show|>
+            for ak in form.keys():
+                if ak.startswith('author-'):
+                    bits = ak.split('-')
+                    aid = int(bits[1])
+                    if form.getfirst(ak)=='show':
+                        include = 1
+                    else:
+                        include = 0
+                    self.tedium.update_author_include_replies_from(aid, include)
+            do_save = True
+
+        if do_save:
             self.tedium.save_changes()
-        elif form.getfirst('update-status')!=None:
+        if form.getfirst('update-status')!=None:
             new_status = form.getfirst('status')
             self.tedium.set_status(new_status)
 

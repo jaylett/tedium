@@ -5,7 +5,7 @@
 {% block "content" %}
     <form id='status-form' method='post'>
       <label for='status'>Current status</label>:
-      <input type='text' name='status' value='{{my_status | safe_attribute}}' id='status' width='140' size='140' />
+      <input type='text' name='status' value='{{my_status | safe_attribute}}' id='status' width='{{ tedium.username | max_tweet_length }}' size='{{ tedium.username | max_tweet_length }}' />
       <input type='submit' name='update-status' value='&gt;&gt; Update!' />
     </form>
 
@@ -22,7 +22,7 @@
 Key: <span class='notindigest'>new since last digest</span>, <span class='new'>new since last view</span>, <span class='protected'>statuses protected for this user</span>.
 </p>
 
-<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http:/twitter.com/{{ tedium.username | escapexml }}'>{{ tedium.username | escapexml }}</a>.
+<p><a href='http://twitter.com/'>Twitter</a> interface for <a href='http://twitter.com/{{ tedium.username | escapexml }}'>{{ tedium.username | escapexml }}</a>.
 {% if replies equals 'digest' %}
 Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}'>Show all replies</a>.
 {% else %}

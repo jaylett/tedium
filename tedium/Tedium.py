@@ -372,8 +372,9 @@ class Tedium:
             tw = textwrap.TextWrapper(initial_indent = ' '*8, subsequent_indent = ' '*8)
             for row in rows:
                 text = row[1].strip()
-                # ignore replies not to us
-                if text[0]=='@':
+                # ignore replies not to us or to/from a marked author
+                author = self.get_author(row[2], c)
+                if not author['include_replies_from']==0 and text[0]=='@':
                     if text[1:len(self.username)+1]!=self.username:
                         replyname = text[1:].replace(':', ' ').split()[0]
                         if replyname!='':
@@ -382,7 +383,6 @@ class Tedium:
                                 continue
                         else:
                             continue
-                author = self.get_author(row[2], c)
                 if author==None:
                     print "Skipping %s" % row[1]
                     continue
@@ -429,9 +429,10 @@ class Tedium:
             rows.sort(lambda x,y: -cmp(x[3],y[3]))
         out_rows = []
         for row in rows:
-            # ignore replies not to us
+            # ignore replies not to us or to/from a marked author
             text = row[1]
-            if replies=='digest' and text[0]=='@':
+            author = self.get_author(row[2], c)
+            if author['include_replies_from']==0 and replies=='digest' and text[0]=='@':
                 if text[1:len(self.username)+1]!=self.username:
                     replyname = text[1:].replace(':', ' ').split()[0]
                     if replyname!='':
@@ -442,7 +443,7 @@ class Tedium:
                         continue
             out_rows.append({ 'date': row[0],
                               'tweet': text,
-                              'author': self.get_author(row[2], c),
+                              'author': author,
                               'published': row[3]})
         c.close()
         return out_rows
