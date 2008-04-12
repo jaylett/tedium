@@ -21,7 +21,6 @@
 #
 # FEATURE: CGI mechanism for reply (just some Javascript?)
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
-# FEATURE: option on authors to show all replies *from* them
 # FIXME: assumes UTC coming out of twitter
 # FIXME: should probably store the id of a tweet as the tweet PK
 #
@@ -30,6 +29,10 @@
 # download python-json and extract json.py into this directory (this is an
 # utter bitch as it isn't packaged for easy_install)
 # sudo easy_install pysqlite
+#
+# you also need jinja; I suspect that >= 1.0 won't work, as I'm currently
+# using 0.9 or so packaged for Debian. This is my problem to fix at some
+# point... :-/
 
 import tedium
 

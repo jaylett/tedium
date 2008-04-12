@@ -68,7 +68,7 @@ import tedium.Tedium, tedium.Cgi
 
 __all__ = ['Cgi', 'Tedium']
 
-VERSION = '0.4'
+VERSION = '0.5'
 #DEFAULT_DIGEST_FORMAT = u'(%(time)5.5s) %(nick)12.12s: %(tweet)-48.48s \u00bb\n'
 #DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(nick)12.12s: %(tweet)s\n'
 DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(fn)s: \n%(wrapped_tweet)s\n\n'
