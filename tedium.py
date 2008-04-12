@@ -26,13 +26,12 @@
 # FIXME: should probably store the id of a tweet as the tweet PK
 #   (needed for the following)
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
+# FEATURE: use jinja for email digest? (split into separate module if so)
 # FIXME: assumes UTC coming out of twitter (however this is probably true)
 #
 # On a Mac:
 #
-# download python-json and extract json.py into this directory (this is an
-# utter bitch as it isn't packaged for easy_install)
-# sudo easy_install pysqlite
+# sudo easy_install pysqlite (but won't work with Panther's builtin SQLite)
 #
 # you also need jinja; I suspect that >= 1.0 won't work, as I'm currently
 # using 0.9 or so packaged for Debian. This is my problem to fix at some

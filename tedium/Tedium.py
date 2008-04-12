@@ -19,7 +19,7 @@
 
 """Core; currently, everything except CGI and invocation."""
 
-import urllib, urllib2, os, os.path, sys, json
+import urllib, urllib2, os, os.path, sys
 import datetime, time, smtplib, textwrap, pwd, getopt
 
 try:
