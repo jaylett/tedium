@@ -19,7 +19,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 #
-# FEATURE: CGI mechanism for reply (just some Javascript?)
 # FEATURE: last-% preservation should have a sequence number that is matched
 #   on all links (but obviously not on refresh) so that they are ignored on
 #   repeated refresh, hence getting the desired UI behaviour (can you say
