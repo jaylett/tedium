@@ -37,6 +37,7 @@ DB_VERSION = 5
 
 class Tedium:
     def __init__(self, configpath=None):
+        self.VERSION = tedium.VERSION
         if configpath==None:
             try:
                 userdir = os.environ['HOME']
