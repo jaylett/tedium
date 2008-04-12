@@ -24,7 +24,6 @@
 # FEATURE: option on authors to show all replies *from* them
 # FIXME: assumes UTC coming out of twitter
 # FIXME: should probably store the id of a tweet as the tweet PK
-# QUESTION: does @<username> count as reply when not at start of tweet?
 #
 # On a Mac:
 #
