@@ -20,9 +20,14 @@
 # USA
 #
 # FEATURE: CGI mechanism for reply (just some Javascript?)
-# FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
-# FIXME: assumes UTC coming out of twitter
+# FEATURE: last-% preservation should have a sequence number that is matched
+#   on all links (but obviously not on refresh) so that they are ignored on
+#   repeated refresh, hence getting the desired UI behaviour (can you say
+#   "shouldn't be a web app"? :-)
 # FIXME: should probably store the id of a tweet as the tweet PK
+#   (needed for the following)
+# FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
+# FIXME: assumes UTC coming out of twitter (however this is probably true)
 #
 # On a Mac:
 #
