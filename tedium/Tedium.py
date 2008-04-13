@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 5
+DB_VERSION = 6
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -103,7 +103,7 @@ class Tedium:
                 self._upgrade_database(row[0], cursor)
 
     def _create_if_no_metadata_table(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10))" % DB_VERSION)
+        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1)" % DB_VERSION)
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
@@ -158,7 +158,10 @@ class Tedium:
         if old_version<5:
             cursor.execute("ALTER TABLE authors ADD COLUMN author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0")
             cursor.execute("UPDATE metadata SET version=5")
-
+        if old_version<6:
+            cursor.execute("ALTER TABLE metadata ADD COLUMN last_sequence INTEGER NOT NULL DEFAULT 1")
+            cursor.execute("UPDATE metadata SET version=6")
+            
     def update(self):
         # get our latest tweet
         try:

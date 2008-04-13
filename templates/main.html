@@ -30,9 +30,9 @@ Key: <span class='notindigest'>new since last digest</span>, <span class='new'>n
 
 <p><a target='_new' href='http://twitter.com/'>Twitter</a> interface for <a target='_new' href='http://twitter.com/{{ tedium.username | safe_attribute }}'>{{ tedium.username | escapexml }}</a>.
 {% if replies equals 'digest' %}
-Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}'>Show all replies</a>.
+Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Show all replies</a>.
 {% else %}
-Showing all replies. <a href='?replies=digest&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}'>Show fewer replies</a>.
+Showing all replies. <a href='?replies=digest&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Show fewer replies</a>.
 {% endif %}
 </p>
 

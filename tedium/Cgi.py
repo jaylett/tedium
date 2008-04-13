@@ -158,6 +158,23 @@ class Driver:
                 self.tedium.set_conf('view_replies', replies)
             reset_viewed = form.getfirst('last_viewed', None)
             reset_digest = form.getfirst('last_digest', None)
+
+            # If the sequence number fed into the CGI doesn't match
+            # the one in the database, it means that the page has been
+            # refreshed, so we should *ignore* the last_* inputs.
+            #
+            # When generating a URL with last_*, remember to include
+            # last_sequence :-)
+            last_sequence = int(form.getfirst('last_sequence', 0))
+            sequence = self.tedium.get_conf('last_sequence', 1)
+            if last_sequence != sequence:
+                reset_viewed = None
+                reset_digest = None
+            if reset_viewed!=None or reset_digest!=None:
+                # Update the stored configuration so that picking it up
+                # and dropping it into a URL will match *next* time.
+                # Only bother doing this when resetting. (Conservation.)
+                self.tedium.set_conf('last_sequence', sequence + 1)
         else:
             replies = self.tedium.get_conf('view_replies')
 
@@ -169,6 +186,7 @@ class Driver:
         print "Content-Type: text/html; charset=utf-8\r\n"
         last_viewed = self.tedium.get_conf('last_viewed')
         last_digest = self.tedium.get_conf('last_digest')
+        last_sequence = self.tedium.get_conf('last_sequence')
         tweets = self.tedium.tweets_to_view(20, replies) # min to display
 
         my_status = self.tedium.get_conf('current_status')
@@ -190,6 +208,7 @@ class Driver:
             'tweets': tweets,
             'last_viewed': last_viewed,
             'last_digest': last_digest,
+            'last_sequence': last_sequence,
             'replies': replies,
             'cssfile': self._ponder_stylesheet()
             })
