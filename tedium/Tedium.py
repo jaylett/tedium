@@ -374,7 +374,7 @@ class Tedium:
                 text = row[1].strip()
                 # ignore replies not to us or to/from a marked author
                 author = self.get_author(row[2], c)
-                if not author['include_replies_from']==0 and text[0]=='@':
+                if author['include_replies_from']==0 and text[0]=='@':
                     if text[1:len(self.username)+1]!=self.username:
                         replyname = text[1:].replace(':', ' ').split()[0]
                         if replyname!='':
