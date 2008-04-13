@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 6
+DB_VERSION = 7
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -161,6 +161,9 @@ class Tedium:
         if old_version<6:
             cursor.execute("ALTER TABLE metadata ADD COLUMN last_sequence INTEGER NOT NULL DEFAULT 1")
             cursor.execute("UPDATE metadata SET version=6")
+        if old_version<7:
+            cursor.execute("DELETE FROM tweets")
+            cursor.execute("UPDATE metadata SET version=7")
             
     def update(self):
         # get our latest tweet
@@ -331,18 +334,19 @@ class Tedium:
         cursor.execute("INSERT INTO authors (author_id, author_nick, author_fn, author_avatar, author_protected) VALUES (?, ?, ?, ?, ?)", [info['id'], info['screen_name'], info['name'], info['profile_image_url'], info['protected']])
         return int(info['id'])
 
-    def make_tweet(self, author_id, text, dt_in, cursor):
+    def make_tweet(self, id, author_id, text, dt_in, cursor):
         # If we used Atom, this would be easier (but still not trivial,
         # as SQLite can't cope with the TZ part of the RFC 3339 date-time).
         #
         # This assumes we're in UTC (let's hope twitter did something
         # sensible - I've observed this correctly for non-UTC authors,
-        # but that may be because *I'm* in UTC...)
+        # but that may be because *I'm* in UTC -- although it still works
+        # during BST.)
         dt_in = dt_in.replace(' +0000', '')
         #print dt_in
         ds_obj = datetime.datetime(*time.strptime(dt_in, "%a %b %d %H:%M:%S %Y")[0:6])
         timestring = ds_obj.isoformat()
-        cursor.execute("INSERT INTO tweets (tweet_author, tweet_text, tweet_published) VALUES (?, ?, ?)", [author_id, text, timestring])
+        cursor.execute("INSERT INTO tweets (tweet_id, tweet_author, tweet_text, tweet_published) VALUES (?, ?, ?, ?)", [id, author_id, text, timestring])
         return timestring
         #print "Inserted tweet from %i" % author_id
 
@@ -363,7 +367,7 @@ class Tedium:
             author_id = self.make_author(tweet['user'], cursor)
         else:
             author_id = self.update_author(tweet['user'], cursor)
-        return self.make_tweet(author_id, tweet['text'], tweet['created_at'], cursor)
+        return self.make_tweet(tweet['id'], author_id, tweet['text'], tweet['created_at'], cursor)
 
     def digest(self, email_address, real=None):
         c = self.db.cursor()

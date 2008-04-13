@@ -19,12 +19,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 #
-# FEATURE: last-% preservation should have a sequence number that is matched
-#   on all links (but obviously not on refresh) so that they are ignored on
-#   repeated refresh, hence getting the desired UI behaviour (can you say
-#   "shouldn't be a web app"? :-)
-# FIXME: should probably store the id of a tweet as the tweet PK
-#   (needed for the following)
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
 # FEATURE: use jinja for email digest? (split into separate module if so)
 # FIXME: assumes UTC coming out of twitter (however this is probably true)
