@@ -125,6 +125,18 @@ class Driver:
                     self.tedium.update_author_include_replies_from(aid, include)
             do_save = True
 
+        if form.getfirst('classify')!=None:
+            # tweet-<tid> = <0|1|2>
+            for tk in form.keys():
+                if tk.startswith('tweet-'):
+                    bits = tk.split('-')
+                    tid = int(bits[1])
+                    try:
+                        self.tedium.update_tweet_spamminess(tid, int(form.getfirst(tk)))
+                    except:
+                        pass
+            do_save = True
+
         if do_save:
             self.tedium.save_changes()
         if form.getfirst('update-status')!=None:
@@ -156,6 +168,12 @@ class Driver:
             replies = form.getfirst('replies')
             if replies!=old_replies:
                 self.tedium.set_conf('view_replies', replies)
+            process_last_resets = True
+        else:
+            replies = self.tedium.get_conf('view_replies')
+            process_last_resets = False
+        
+        if process_last_resets:
             reset_viewed = form.getfirst('last_viewed', None)
             reset_digest = form.getfirst('last_digest', None)
 
@@ -175,8 +193,6 @@ class Driver:
                 # and dropping it into a URL will match *next* time.
                 # Only bother doing this when resetting. (Conservation.)
                 self.tedium.set_conf('last_sequence', sequence + 1)
-        else:
-            replies = self.tedium.get_conf('view_replies')
 
         if not self.is_test and reset_viewed!=None:
             self.tedium.set_conf('last_viewed', reset_viewed)
@@ -187,7 +203,11 @@ class Driver:
         last_viewed = self.tedium.get_conf('last_viewed')
         last_digest = self.tedium.get_conf('last_digest')
         last_sequence = self.tedium.get_conf('last_sequence')
-        tweets = self.tedium.tweets_to_view(20, replies) # min to display
+        try:
+            num_to_get = int(form.getfirst('tweets'))
+        except:
+            num_to_get = 20
+        tweets = self.tedium.tweets_to_view(num_to_get, replies)
 
         my_status = self.tedium.get_conf('current_status')
 
@@ -200,6 +220,9 @@ class Driver:
                     tweet['_is_notindigest'] = True
                 if author['protected']:
                     tweet['_is_protected'] = True
+                if self.tedium.is_tweet_spam(tweet['id']):
+                    tweet['_is_spam'] = True
+                tweet['_spam_score'] = self.tedium.tweet_spam_score(tweet['id'])
 
         tmpl = Template('main', FileSystemLoader(self.templates_dir))
         c = Context({

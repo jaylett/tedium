@@ -19,7 +19,7 @@
 
 """Core; currently, everything except CGI and invocation."""
 
-import urllib, urllib2, os, os.path, sys
+import urllib, urllib2, os, os.path, sys, spambayes.storage
 import datetime, time, smtplib, textwrap, pwd, getopt
 
 try:
@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 7
+DB_VERSION = 8
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -57,6 +57,8 @@ class Tedium:
         self.configpath = configpath
         self.dbpath = os.path.join(self.configpath, 'db')
         self.db = sqlite.connect(self.dbpath)
+        self.bayespath = os.path.join(self.configpath, 'bayes')
+        self.bayes = spambayes.storage.DBDictClassifier(self.bayespath)
 
         c = self.db.cursor()
         self.username = ''
@@ -106,7 +108,7 @@ class Tedium:
         cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1)" % DB_VERSION)
 
     def _initialise_database(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0)")
         cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0)")
         self._configure(cursor)
 
@@ -164,6 +166,9 @@ class Tedium:
         if old_version<7:
             cursor.execute("DELETE FROM tweets")
             cursor.execute("UPDATE metadata SET version=7")
+        if old_version<8:
+            cursor.execute("ALTER TABLE tweets ADD COLUMN tweet_spam INTEGER DEFAULT 0")
+            cursor.execute("UPDATE metadata SET version=8")
             
     def update(self):
         # get our latest tweet
@@ -322,6 +327,44 @@ class Tedium:
             pass
         cursor.close()
 
+    def _tokenise_tweet(self, id):
+        cursor = self.db.cursor()
+        cursor.execute("SELECT tweet_text, tweet_author FROM tweets WHERE tweet_id=?", (id,))
+        row = cursor.fetchone()
+        if row!=None:
+            tweet = row[0]
+            aid = row[1]
+            author = self.get_author(aid, cursor)
+            tweet.replace(':', ' ')
+            words = tweet.split()
+            for w in words:
+                yield w
+            for w in words:
+                yield author['nick'] + ':' + w
+            yield ':' + author['nick']
+        cursor.close()
+
+    def tweet_spam_score(self, tweet_id):
+        return self.bayes.spamprob(self._tokenise_tweet(tweet_id))
+
+    def is_tweet_spam(self, tweet_id, threshold=0.9):
+        return self.tweet_spam_score(tweet_id) > threshold
+
+    def update_tweet_spamminess(self, tweet_id, is_spammy):
+        cursor = self.db.cursor()
+        cursor.execute("SELECT tweet_spam FROM tweets WHERE tweet_id=?", (tweet_id,))
+        row = cursor.fetchone()
+        if row!=None:
+            was_spammy = row[0]
+            if is_spammy != was_spammy and was_spammy>0:
+                self.bayes.unlearn(self._tokenise_tweet(tweet_id), was_spammy==2)
+        else:
+            was_spammy = 0
+        if is_spammy != was_spammy and is_spammy>0:
+            self.bayes.learn(self._tokenise_tweet(tweet_id), is_spammy==2)
+        cursor.execute("UPDATE tweets SET tweet_spam=? WHERE tweet_id=?", (is_spammy, tweet_id))
+        cursor.close()
+
     def update_author(self, info, cursor):
         cursor.execute("UPDATE authors SET author_nick=?, author_fn=?, author_avatar=?, author_protected=? WHERE author_id=?", (info['screen_name'], info['name'], info['profile_image_url'], info['protected'], info['id']))
         try:
@@ -372,12 +415,15 @@ class Tedium:
     def digest(self, email_address, real=None):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
         rows = c.fetchall()
         if len(rows)>0:
             digest = ''
             tw = textwrap.TextWrapper(initial_indent = ' '*8, subsequent_indent = ' '*8)
             for row in rows:
+                # skip spam
+                if self.is_tweet_spam(row[4]):
+                    continue
                 text = row[1].strip()
                 # ignore replies not to us or to/from a marked author
                 author = self.get_author(row[2], c)
@@ -426,21 +472,21 @@ class Tedium:
         last_viewed = self.get_conf('last_viewed')
         if last_viewed==None:
             last_viewed = '1970-01-01 00:00:00'
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_viewed])
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_viewed])
         rows = c.fetchall()
         number_to_fetch = min_to_display - len(rows)
         if number_to_fetch > 0:
-            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
+            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
             rows1 = c.fetchall()
             rows.extend(rows1)
             rows.sort(lambda x,y: -cmp(x[3],y[3]))
         out_rows = []
         for row in rows:
-            # ignore replies not to us or to/from a marked author
+            # ignore replies not to/from us or to/from a marked author
             text = row[1]
             author = self.get_author(row[2], c)
             if author['include_replies_from']==0 and replies=='digest' and text[0]=='@':
-                if text[1:len(self.username)+1]!=self.username:
+                if self.username!=author['nick'] and text[1:len(self.username)+1]!=self.username:
                     replyname = text[1:].replace(':', ' ').split()[0]
                     if replyname!='':
                         a = self.get_author_by_username(replyname, c)
@@ -451,6 +497,11 @@ class Tedium:
             out_rows.append({ 'date': row[0],
                               'tweet': text,
                               'author': author,
+                              'classified_spamminess': row[4],
+                              'id': row[5],
+                              # 0 = unclassified
+                              # 1 = classified as ham
+                              # 2 = classified as spam
                               'published': row[3]})
         c.close()
         return out_rows

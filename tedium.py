@@ -20,7 +20,9 @@
 # USA
 #
 # FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
+#   * use, not just display, in cgi
 # FEATURE: use jinja for email digest? (split into separate module if so)
+# FEATURE: update to jinja > 1.0
 # FIXME: assumes UTC coming out of twitter (however this is probably true)
 #
 # On a Mac:

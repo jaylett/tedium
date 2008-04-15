@@ -24,7 +24,7 @@ function tedium_funkify() {
 		}
 	    }
 	}
-	if (check(elements[i], 'tweet')) {
+	if (check(elements[i], 'tweet-tools')) {
 	    var reply = document.createElement('img');
 	    reply.className = 'reply-button';
 	    reply.src = 'icons/arrow_right.png';
@@ -33,7 +33,7 @@ function tedium_funkify() {
 	    reply.title = 'Reply to this tweet';
 	    var tweetbox = document.getElementById('status');
 	    reply.onclick = function(author) { return function() { tweetbox.value = '@' + author + ': '; tweetbox.focus(); return true; } }(current_author);
-	    elements[i].insertBefore(reply, elements[i].firstChild);
+	    elements[i].appendChild(reply);
 	}
     }
     var element = document.getElementById('key');

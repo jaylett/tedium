@@ -4,10 +4,12 @@ li:after { content: " "; display: block; clear: both; }
 li { clear: both; border-bottom: 1px dashed black; min-height: 1.2em; }
 .time { width: 5%; vertical-align: top; float: left; padding-left: 0.2em; }
 .author { width: 20%; vertical-align: top; float: left; }
-.tweet { float: left; width: 70%; padding-left: 0.2em; }
+.tweet-tools { float: left; width: 10%; text-align: right; }
+.tweet { float: left; width: 60%; padding-left: 0.2em;}
 .protected { color: rgb(200,50,100); }
 .new { background: rgb(100,150,200); }
 .notindigest { background: rgb(100,200,150); }
+.spam { text-decoration: line-through; }
 address { font-size: 80%; font-style: normal; border-top: 1px solid black; }
 form { display: inline; padding: 0; margin: 0; font-size: 80%; }
 a { color: blue; }
@@ -15,7 +17,11 @@ a:visited { color: purple; }
 input[type=submit] { border: none; margin: 0; padding: 0; cursor: pointer; color: blue; font-size: 100%; background: transparent; }
 input[type=submit].replies-option-enabled { background: url("icons/tick.png") no-repeat right; min-height: 20px; padding-right: 20px; }
 input[type=submit].replies-option-disabled { background: url("icons/cross.png") no-repeat right; min-height: 20px; padding-right: 20px; }
+input[type=image] { border: none; margin: 1px 1px 1px 1px; padding: 0 3px 0 3px; vertical-align: middle; }
+input[type=image][src="icons/email.png"].spamminess-selected { background-color: green; }
+input[type=image][src="icons/email_error.png"].spamminess-selected { background-color: red; }
 #status-form { border-bottom: 1px solid black; padding-bottom: 1em; margin-bottom: 1em; display: block; font-size: 100%; }
 #status-form input { border: none; font-size: 100%; border: 1px solid white; }
 #status-form input:focus, #status-form input:hover { border: 1px solid black; }
-.reply-button { margin: 0 4px 0 0; vertical-align: bottom; }
+.reply-button { margin: 1px 1px 1px 5px; vertical-align: middle; }
+.spam-score { font-size: 80%; }
