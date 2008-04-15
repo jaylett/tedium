@@ -23,5 +23,5 @@ input[type=image][src="icons/email_error.png"].spamminess-selected { background-
 #status-form { border-bottom: 1px solid black; padding-bottom: 1em; margin-bottom: 1em; display: block; font-size: 100%; }
 #status-form input { border: none; font-size: 100%; border: 1px solid white; }
 #status-form input:focus, #status-form input:hover { border: 1px solid black; }
-.reply-button { margin: 1px 1px 1px 5px; vertical-align: middle; }
+.reply-button { margin: 1px 1px 1px 5px; vertical-align: middle; cursor: pointer; }
 .spam-score { font-size: 80%; }
