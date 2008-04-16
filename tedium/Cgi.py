@@ -23,7 +23,7 @@ Tedium's CGI driver.
 
 import tedium
 
-import re, os, os.path, sys, cgi, cgitb, urllib
+import re, os, os.path, sys, cgi, cgitb, urllib, urlparse
 from jinja import Template, Context, FileSystemLoader
 from jinja.filters import stringfilter
 from jinja.lib import stdlib
@@ -143,7 +143,22 @@ class Driver:
             new_status = form.getfirst('status')
             self.tedium.set_status(new_status)
 
-        print "Location: %s" % os.environ.get('HTTP_REFERER', 'http://tartarus.org/james/')
+        next_uri = os.environ.get('HTTP_REFERER', 'http://tartarus.org/james/tedium/')
+        bits = urlparse.urlparse(next_uri)
+        query = dict(cgi.parse_qsl(bits[4]))
+        reset_viewed = form.getfirst('last_viewed', None)
+        reset_digest = form.getfirst('last_digest', None)
+        if reset_viewed!=None:
+            query['last_viewed'] = reset_viewed
+        if reset_digest!=None:
+            query['last_digest'] = reset_digest
+        if reset_digest!=None or reset_viewed!=None:
+            query['last_sequence'] = self.tedium.get_conf('last_sequence', 1)
+        new_bits = list(bits)
+        new_bits[4] = urllib.urlencode(query)
+        next_uri = urlparse.urlunparse(new_bits)
+
+        print "Location: %s" % next_uri
         print
 
     def do_get(self, form=None):
@@ -168,31 +183,28 @@ class Driver:
             replies = form.getfirst('replies')
             if replies!=old_replies:
                 self.tedium.set_conf('view_replies', replies)
-            process_last_resets = True
         else:
             replies = self.tedium.get_conf('view_replies')
-            process_last_resets = False
         
-        if process_last_resets:
-            reset_viewed = form.getfirst('last_viewed', None)
-            reset_digest = form.getfirst('last_digest', None)
+        reset_viewed = form.getfirst('last_viewed', None)
+        reset_digest = form.getfirst('last_digest', None)
 
-            # If the sequence number fed into the CGI doesn't match
-            # the one in the database, it means that the page has been
-            # refreshed, so we should *ignore* the last_* inputs.
-            #
-            # When generating a URL with last_*, remember to include
-            # last_sequence :-)
-            last_sequence = int(form.getfirst('last_sequence', 0))
-            sequence = self.tedium.get_conf('last_sequence', 1)
-            if last_sequence != sequence:
-                reset_viewed = None
-                reset_digest = None
-            if reset_viewed!=None or reset_digest!=None:
-                # Update the stored configuration so that picking it up
-                # and dropping it into a URL will match *next* time.
-                # Only bother doing this when resetting. (Conservation.)
-                self.tedium.set_conf('last_sequence', sequence + 1)
+        # If the sequence number fed into the CGI doesn't match
+        # the one in the database, it means that the page has been
+        # refreshed, so we should *ignore* the last_* inputs.
+        #
+        # When generating a URL with last_*, remember to include
+        # last_sequence :-)
+        last_sequence = int(form.getfirst('last_sequence', 0))
+        sequence = self.tedium.get_conf('last_sequence', 1)
+        if last_sequence != sequence:
+            reset_viewed = None
+            reset_digest = None
+        if reset_viewed!=None or reset_digest!=None:
+            # Update the stored configuration so that picking it up
+            # and dropping it into a URL will match *next* time.
+            # Only bother doing this when resetting. (Conservation.)
+            self.tedium.set_conf('last_sequence', sequence + 1)
 
         if not self.is_test and reset_viewed!=None:
             self.tedium.set_conf('last_viewed', reset_viewed)
@@ -206,7 +218,7 @@ class Driver:
         try:
             num_to_get = int(form.getfirst('tweets'))
         except:
-            num_to_get = 20
+            num_to_get = 10
         tweets = self.tedium.tweets_to_view(num_to_get, replies)
 
         my_status = self.tedium.get_conf('current_status')
