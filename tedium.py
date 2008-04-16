@@ -19,15 +19,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 #
-# FEATURE: Graham-Bayes scoring on tweets with thresholds for digest, cgi
-#   * use, not just display, in cgi
+# FEATURE: spam filtering is used not just displayed in CGI
+# FIXME: spam unlearn then learn doesn't seem to work properly
 # FEATURE: use jinja for email digest? (split into separate module if so)
 # FEATURE: update to jinja > 1.0
 # FIXME: assumes UTC coming out of twitter (however this is probably true)
 #
-# On a Mac:
+# Prereqs on a Mac:
 #
-# sudo easy_install pysqlite (but won't work with Panther's builtin SQLite)
+# sudo easy_install pysqlite
+#
+# spambayes
 #
 # you also need jinja; I suspect that >= 1.0 won't work, as I'm currently
 # using 0.9 or so packaged for Debian. This is my problem to fix at some
