@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 8
+DB_VERSION = 9
 
 class Tedium:
     def __init__(self, configpath=None):
@@ -105,7 +105,7 @@ class Tedium:
                 self._upgrade_database(row[0], cursor)
 
     def _create_if_no_metadata_table(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1)" % DB_VERSION)
+        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1, fixed_filter VARCHAR(140), view_spam VARCHAR(10) DEFAULT 'all')" % DB_VERSION)
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0)")
@@ -169,6 +169,10 @@ class Tedium:
         if old_version<8:
             cursor.execute("ALTER TABLE tweets ADD COLUMN tweet_spam INTEGER DEFAULT 0")
             cursor.execute("UPDATE metadata SET version=8")
+        if old_version<9:
+            cursor.execute("ALTER TABLE metadata ADD COLUMN fixed_filter VARCHAR(140) DEFAULT ''")
+            cursor.execute("ALTER TABLE metadata ADD COLUMN view_spam VARCHAR(10) DEFAULT 'all'")
+            cursor.execute("UPDATE metadata SET version=9")
             
     def update(self):
         # get our latest tweet
@@ -412,34 +416,47 @@ class Tedium:
             author_id = self.update_author(tweet['user'], cursor)
         return self.make_tweet(tweet['id'], author_id, tweet['text'], tweet['created_at'], cursor)
 
+    def _should_skip_tweet(self, tweet_row, skip_spam=False, skip_replies=False, cursor=None):
+        fixed_filter = self.get_conf('fixed_filter').strip()
+        text = tweet_row[1].strip()
+        if fixed_filter!='':
+            filter_words = map(lambda x: x.strip(), fixed_filter.split(','))
+            for word in filter_words:
+                if word in text:
+                    return True;
+        if skip_spam and self.is_tweet_spam(tweet_row[5]):
+            return True
+        if cursor==None:
+            c = self.db.cursor()
+        else:
+            c = cursor
+        author = self.get_author(tweet_row[2], c)
+        if skip_replies and author['include_replies_from']==0 and text[0]=='@':
+            replyname = text[1:].replace(':', ' ').split()[0]
+            if replyname!=self.username and self.username!=author['nick']:
+                if replyname!='':
+                    a = self.get_author_by_username(replyname, c)
+                    if a==None or not a['include_replies_to']:
+                        if cursor==None:
+                            c.close()
+                        return True
+        if cursor==None:
+            c.close()
+        return False
+
     def digest(self, email_address, real=None):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
         rows = c.fetchall()
         if len(rows)>0:
             digest = ''
             tw = textwrap.TextWrapper(initial_indent = ' '*8, subsequent_indent = ' '*8)
             for row in rows:
-                # skip spam
-                if self.is_tweet_spam(row[4]):
+                if self._should_skip_tweet(row, skip_spam=True, skip_replies=True, cursor=c):
                     continue
-                text = row[1].strip()
-                # ignore replies not to us or to/from a marked author
                 author = self.get_author(row[2], c)
-                if author['include_replies_from']==0 and text[0]=='@':
-                    if text[1:len(self.username)+1]!=self.username:
-                        replyname = text[1:].replace(':', ' ').split()[0]
-                        if replyname!='':
-                            a = self.get_author_by_username(replyname, c)
-                            if a==None or not a['include_replies_to']:
-                                continue
-                        else:
-                            continue
-                if author==None:
-                    print "Skipping %s" % row[1]
-                    continue
-                digest_keys = {'time': row[0], 'nick': author['nick'], 'fn': author['fn'], 'tweet': row[1], 'wrapped_tweet': tw.fill(row[1])}
+                digest_keys = {'time': row[0], 'nick': author['nick'], 'fn': author['fn'], 'tweet': row[1].strip(), 'wrapped_tweet': tw.fill(row[1])}
                 digest += self.digest_line(digest_keys)
             if digest!='':
                 digest = "Hi %s. Here's your twitter digest:\n\n%s" % (self.username, digest)
@@ -467,7 +484,7 @@ class Tedium:
             self.save_changes()
         c.close()
 
-    def tweets_to_view(self, min_to_display, replies='all'):
+    def tweets_to_view(self, min_to_display, replies='all', spam='all'):
         c = self.db.cursor()
         last_viewed = self.get_conf('last_viewed')
         if last_viewed==None:
@@ -482,20 +499,13 @@ class Tedium:
             rows.sort(lambda x,y: -cmp(x[3],y[3]))
         out_rows = []
         for row in rows:
+        
             # ignore replies not to/from us or to/from a marked author
-            text = row[1]
+            if self._should_skip_tweet(row, skip_spam=(spam=='none'), skip_replies=(replies=='digest'), cursor=c):
+                continue
             author = self.get_author(row[2], c)
-            if author['include_replies_from']==0 and replies=='digest' and text[0]=='@':
-                if self.username!=author['nick'] and text[1:len(self.username)+1]!=self.username:
-                    replyname = text[1:].replace(':', ' ').split()[0]
-                    if replyname!='':
-                        a = self.get_author_by_username(replyname, c)
-                        if a==None or not a['include_replies_to']:
-                            continue
-                    else:
-                        continue
             out_rows.append({ 'date': row[0],
-                              'tweet': text,
+                              'tweet': row[1].strip(),
                               'author': author,
                               'classified_spamminess': row[4],
                               'id': row[5],

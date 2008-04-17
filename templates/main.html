@@ -34,7 +34,20 @@ Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&am
 {% else %}
 Showing all replies. <a href='?replies=digest&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Show fewer replies</a>.
 {% endif %}
+{% if spam equals 'none' %}
+Hiding spam. <a href='?spam=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Show spam</a>.
+{% else %}
+Showing spam. <a href='?spam=none&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Hide spam</a>.
+{% endif %}
 </p>
+
+<form method='POST'>
+<input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
+<input type='hidden' name='last_digest' value='{{ last_digest }}' />
+<label for='fixed-filter'>Current filter (comma-separated)</label>:
+<input type='text' id='fixed-filter' name='fixed-filter' value='{{ fixed_filter }}' width='40' size='40' />
+<input type='submit' name='update-filter' value='Set' />
+</form>
 
 {% endblock %}
 

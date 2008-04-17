@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 #
-# FEATURE: spam filtering is used not just displayed in CGI
+# FEATURE: temporary ban: 24H block on this user (for conferences)
 # FIXME: spam unlearn then learn doesn't seem to work properly
 # FEATURE: use jinja for email digest? (split into separate module if so)
 # FEATURE: update to jinja > 1.0

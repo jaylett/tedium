@@ -124,7 +124,6 @@ class Driver:
                         include = 0
                     self.tedium.update_author_include_replies_from(aid, include)
             do_save = True
-
         if form.getfirst('classify')!=None:
             # tweet-<tid> = <0|1|2>
             for tk in form.keys():
@@ -135,6 +134,9 @@ class Driver:
                         self.tedium.update_tweet_spamminess(tid, int(form.getfirst(tk)))
                     except:
                         pass
+            do_save = True
+        if form.getfirst('update-filter')!=None:
+            self.tedium.set_conf('fixed_filter', form.getfirst('fixed-filter'))
             do_save = True
 
         if do_save:
@@ -185,6 +187,13 @@ class Driver:
                 self.tedium.set_conf('view_replies', replies)
         else:
             replies = self.tedium.get_conf('view_replies')
+        if form.has_key('spam'):
+            old_spam = self.tedium.get_conf('view_spam')
+            spam = form.getfirst('spam')
+            if spam!=old_spam:
+                self.tedium.set_conf('view_spam', spam)
+        else:
+            spam = self.tedium.get_conf('view_spam')
         
         reset_viewed = form.getfirst('last_viewed', None)
         reset_digest = form.getfirst('last_digest', None)
@@ -219,7 +228,7 @@ class Driver:
             num_to_get = int(form.getfirst('tweets'))
         except:
             num_to_get = 10
-        tweets = self.tedium.tweets_to_view(num_to_get, replies)
+        tweets = self.tedium.tweets_to_view(num_to_get, replies, spam)
 
         my_status = self.tedium.get_conf('current_status')
 
@@ -245,7 +254,9 @@ class Driver:
             'last_digest': last_digest,
             'last_sequence': last_sequence,
             'replies': replies,
-            'cssfile': self._ponder_stylesheet()
+            'spam': spam,
+            'cssfile': self._ponder_stylesheet(),
+            'fixed_filter': self.tedium.get_conf('fixed_filter')
             })
         print tmpl.render(c).encode('utf-8')
         
