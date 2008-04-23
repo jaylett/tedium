@@ -255,7 +255,10 @@ class Tedium:
             if status.tag!='status':
                 raise tedium.TediumError('Twitter response was not an XML doc with root status')
             status = self._extract_from_xml(status)
-            if status['text']==new_status:
+            res_status = status['text']
+            if type(res_status) is unicode:
+                res_status = res_status.encode('utf-8')
+            if res_status==new_status:
                 self.set_conf('current_status', new_status)
                 self.save_changes()
             else:
