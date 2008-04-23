@@ -35,6 +35,14 @@ import tedium
 
 DB_VERSION = 9
 
+def de_attributify(t):
+    t = t.replace('&quot;', '"')
+    t = t.replace('&apos;', "'")
+    t = t.replace('&lt;', '<')
+    t = t.replace('&gt;', '>')
+    t = t.replace('&amp;', '&')
+    return t
+
 class Tedium:
     def __init__(self, configpath=None):
         self.VERSION = tedium.VERSION
@@ -255,7 +263,7 @@ class Tedium:
             if status.tag!='status':
                 raise tedium.TediumError('Twitter response was not an XML doc with root status')
             status = self._extract_from_xml(status)
-            res_status = status['text']
+            res_status = de_attributify(status['text'])
             if type(res_status) is unicode:
                 res_status = res_status.encode('utf-8')
             if res_status==new_status:
