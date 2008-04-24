@@ -472,23 +472,23 @@ class Tedium:
             if digest!='':
                 digest = "Hi %s. Here's your twitter digest:\n\n%s" % (self.username, digest)
 
-            if email_address=='show':
-                print digest.encode('utf8')
-                c.close()
-                return
-            else:
-                msg = MIMEText(digest.encode('utf8'), 'plain', 'utf8')
-                msg['Subject'] = 'Twitter digest'
-                if real!=None:
-                    format_email = '%s <%s>' % (real, email_address)
+                if email_address=='show':
+                    print digest.encode('utf8')
+                    c.close()
+                    return
                 else:
-                    format_email = email_address
-                msg['From'] = format_email
-                msg['To'] = format_email
-                s = smtplib.SMTP()
-                s.connect()
-                s.sendmail(email_address, [email_address], msg.as_string())
-                s.close()
+                    msg = MIMEText(digest.encode('utf8'), 'plain', 'utf8')
+                    msg['Subject'] = 'Twitter digest'
+                    if real!=None:
+                        format_email = '%s <%s>' % (real, email_address)
+                    else:
+                        format_email = email_address
+                    msg['From'] = format_email
+                    msg['To'] = format_email
+                    s = smtplib.SMTP()
+                    s.connect()
+                    s.sendmail(email_address, [email_address], msg.as_string())
+                    s.close()
 
             max_published = max(map(lambda x: x[3], rows))
             self.set_conf('last_digest', max_published)
