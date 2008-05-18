@@ -5,7 +5,7 @@
 {% block "content" %}
     <form id='status-form' method='post'>
       <label for='status'>Current status</label>:
-      <input type='text' name='status' value='{{my_status | safe_attribute}}' id='status' width='{{ tedium.username | max_tweet_length }}' size='{{ tedium.username | max_tweet_length }}' />
+      <input type='text' name='status' value='{{my_status | escape_apos }}' id='status' width='{{ tedium.username | max_tweet_length }}' size='{{ tedium.username | max_tweet_length }}' />
       <input type='submit' name='update-status' value='&gt;&gt; Update!' />
       <input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
       <input type='hidden' name='last_digest' value='{{ last_digest }}' />
@@ -20,7 +20,7 @@ class='author'><a target='_new' class='author-name' title='{{ tweet.author.fn | 
 <form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_from equals 1 %}hide{% else %}show{% endif %}' /><input type='hidden' name='last_viewed' value='{{ last_viewed }}' /><input type='hidden' name='last_digest' value='{{ last_digest }}' /><input class='replies-option-{% if tweet.author.include_replies_from equals 1 %}enabled{% else %}disabled{% endif %}' type='submit' name='set-author-include-replies-from' value='from' /></form>
 {% endif %}</span><span
 class='tweet-tools'><form method='post'><input type='hidden' name='tweet-{{ tweet.id }}' value='{% if tweet.classified_spamminess equals 2 %}0{% else %}2{% endif %}' /><input type='hidden' name='last_viewed' value='{{ last_viewed }}' /><input type='hidden' name='last_digest' value='{{ last_digest }}' /><input type='image' {% if tweet.classified_spamminess equals 2 %}class='spamminess-selected' title='Unmark as spam' {% else %}title='Mark as spam'{% endif %} src='icons/email_error.png' name='classify' value='Toggle spam' /></form><form method='post'><input type='hidden' name='tweet-{{ tweet.id }}' value='{% if tweet.classified_spamminess equals 1 %}0{% else %}1{% endif %}' /><input type='hidden' name='last_viewed' value='{{ last_viewed }}' /><input type='hidden' name='last_digest' value='{{ last_digest }}'<input {% if tweet.classified_spamminess equals 1 %}class='spamminess-selected' title='Unmark as ham' {% else %}title='Mark as ham'{% endif %} type='image' src='icons/email.png' name='classify' value='Toggle ham' /></form><span class='spam-score' title='{{ tweet._spam_score }}'>({{ tweet._spam_score | format '1.1f' }})</span></span><span
-class='tweet'>{{ tweet.tweet | escapexml | htmlify }}</span></li>
+class='tweet'>{{ tweet.tweet | htmlify }}</span></li>
 {% endfor %}
 </ol>
 

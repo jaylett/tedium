@@ -50,9 +50,13 @@ def safe_attribute(text):
 def max_tweet_length(text):
     return 140 - len(text) - 2 # ': '
 
+def escape_apos(text):
+    return text.replace("'", '&apos;')
+
 stdlib.register_filter('htmlify', stringfilter(htmlify))
 stdlib.register_filter('safe_attribute', stringfilter(safe_attribute))
 stdlib.register_filter('max_tweet_length', stringfilter(max_tweet_length))
+stdlib.register_filter('escape_apos', stringfilter(escape_apos))
 
 class Driver:
     """Tedium's CGI driver; construct with a Tedium object, then call do_get()."""
@@ -246,6 +250,9 @@ class Driver:
                 tweet['_spam_score'] = self.tedium.tweet_spam_score(tweet['id'])
 
         tmpl = Template('main', FileSystemLoader(self.templates_dir))
+        # WARNING: *ensure* that tweets.tweet is entity escapes wrt XML
+        # builtins. my_status carries the same warning. (Use the escape_apos
+        # filter to put my_status in a '-delimited attribute, eg for <input>.)
         c = Context({
             'my_status': my_status,
             'tedium': self.tedium,
