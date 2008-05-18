@@ -184,6 +184,7 @@ class Tedium:
             
     def update(self):
         # get our latest tweet
+	data = None
         try:
             uri = "https://twitter.com/users/show/%s.xml" % self.username
             f = urllib2.urlopen(uri)
@@ -198,12 +199,17 @@ class Tedium:
                 self.set_conf('current_status', my_status)
         except urllib2.URLError:
             pass
+        except:
+            if data!=None:
+		print "Failed to cope with '%s'" % data
+            raise
         
         if self.last_updated==None:
             uri = 'https://twitter.com/statuses/friends_timeline.xml'
         else:
             # HTTP formatted date
             uri = 'https://twitter.com/statuses/friends_timeline.xml?since=%s' % urllib.quote_plus(self.last_updated)
+        data = None
         try:
             c = self.db.cursor()
             f = urllib2.urlopen(uri)
@@ -234,7 +240,11 @@ class Tedium:
                 return
             #print e.read()
             raise tedium.TediumError('Could not fetch updates from Twitter', e)
-
+        except:
+            if data!=None:
+		print "Failed to cope with '%s'" % data
+            raise
+        
     def get_conf(self, confname, default=None):
         """Get a config option."""
         cursor = self.db.cursor()
@@ -270,7 +280,8 @@ class Tedium:
                 self.set_conf('current_status', new_status)
                 self.save_changes()
             else:
-                raise tedium.TediumError("Came back with different status: %s" % status['text'])
+                if status['truncated']!='true':
+                    raise tedium.TediumError("Came back with different status: %s" % status['text'])
         except tedium.TediumError:
             raise
         except Exception, e:
@@ -431,9 +442,9 @@ class Tedium:
         fixed_filter = self.get_conf('fixed_filter').strip()
         text = tweet_row[1].strip()
         if fixed_filter!='':
-            filter_words = map(lambda x: x.strip(), fixed_filter.split(','))
+            filter_words = map(lambda x: x.lower().strip(), fixed_filter.split(','))
             for word in filter_words:
-                if word in text:
+                if word in text.lower():
                     return True;
         if skip_spam and self.is_tweet_spam(tweet_row[5]):
             return True
@@ -497,17 +508,29 @@ class Tedium:
 
     def tweets_to_view(self, min_to_display, replies='all', spam='all'):
         c = self.db.cursor()
-        last_viewed = self.get_conf('last_viewed')
-        if last_viewed==None:
-            last_viewed = '1970-01-01 00:00:00'
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_viewed])
-        rows = c.fetchall()
+        last_digest = self.get_conf('last_digest')
+        if last_digest!=None:
+            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC", [last_digest])
+            rows = c.fetchall()
+        else:
+            rows = []
+            
+        number_to_fetch = 2*min_to_display - len(rows)
+        if number_to_fetch > 0:
+            last_viewed = self.get_conf('last_viewed')
+            if last_viewed==None:
+                last_viewed = '1970-01-01 00:00:00'
+            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
+            rows1 = c.fetchall()
+            rows.extend(rows1)
+
         number_to_fetch = min_to_display - len(rows)
         if number_to_fetch > 0:
             c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published <= ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
             rows1 = c.fetchall()
             rows.extend(rows1)
-            rows.sort(lambda x,y: -cmp(x[3],y[3]))
+        rows.sort(lambda x,y: -cmp(x[3],y[3]))
+
         out_rows = []
         for row in rows:
         
