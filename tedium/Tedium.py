@@ -230,16 +230,19 @@ class Tedium:
                 self.set_conf('last_updated', max_published)
             self.save_changes()
         except urllib2.URLError, e:
-            if e.code==401:
-                self.delete_credentials(c)
+            try:
+                if e.code==401:
+                    self.delete_credentials(c)
+                    c.close()
+                    raise tedium.TediumError('Username/password incorrect!', e)
                 c.close()
-                raise tedium.TediumError('Username/password incorrect!', e)
-            c.close()
-            if e.code==304:
-                # Not modified, don't kick up a fuss
-                return
-            #print e.read()
-            raise tedium.TediumError('Could not fetch updates from Twitter', e)
+                if e.code==304:
+                    # Not modified, don't kick up a fuss
+                    return
+                #print e.read()
+                #raise tedium.TediumError('Could not fetch updates from Twitter', e)
+            except:
+                raise tedium.TediumError('Error handling failed', e)
         except:
             if data!=None:
 		print "Failed to cope with '%s'" % data
