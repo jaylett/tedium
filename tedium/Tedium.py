@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 9
+DB_VERSION = 10
 
 def de_attributify(t):
     t = t.replace('&quot;', '"')
@@ -117,7 +117,7 @@ class Tedium:
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0, author_ignore_until DATETIME)")
         self._configure(cursor)
 
     def reconfigure(self):
@@ -181,6 +181,9 @@ class Tedium:
             cursor.execute("ALTER TABLE metadata ADD COLUMN fixed_filter VARCHAR(140) DEFAULT ''")
             cursor.execute("ALTER TABLE metadata ADD COLUMN view_spam VARCHAR(10) DEFAULT 'all'")
             cursor.execute("UPDATE metadata SET version=9")
+        if old_version<10:
+            cursor.execute("ALTER TABLE authors ADD COLUMN author_ignore_until DATETIME")
+            cursor.execute("UPDATE metadata SET version=10")
             
     def update(self):
         # get our latest tweet
@@ -299,12 +302,12 @@ class Tedium:
         u = self._author_cache.get(id)
         if u!=None:
             return u
-        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id, author_include_replies_from FROM authors WHERE author_id=?", [int(id)])
+        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id, author_include_replies_from, author_ignore_until FROM authors WHERE author_id=?", [int(id)])
         row = cursor.fetchone()
         if row==None:
             return None
         else:
-            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies_to': row[4], 'include_replies_from': row[6] }
+            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies_to': row[4], 'include_replies_from': row[6], 'ignore_until': row[7] }
             if row[3]=='true':
                 u['protected'] = True
             else:
@@ -339,6 +342,16 @@ class Tedium:
     def save_changes(self):
         """Save all changes that have been processed recently."""
         self.db.commit()
+
+    def update_author_ignore_until(self, aid, ignore_until):
+        """Set when we should ignore this user until."""
+        cursor = self.db.cursor()
+        cursor.execute("UPDATE authors SET author_ignore_until=? WHERE author_id=?", (ignore_until, aid))
+        try:
+            del self._author_cache[aid]
+        except KeyError:
+            pass
+        cursor.close()
 
     def update_author_include_replies_to(self, aid, include):
         """Set whether we should include replies to this author in digest mode."""
@@ -468,6 +481,8 @@ class Tedium:
         else:
             c = cursor
         author = self.get_author(tweet_row[2], c)
+        if author['ignore_until']>time.time():
+            return True
         if skip_replies and author['include_replies_from']==0 and text[0]=='@':
             replyname = text[1:].replace(':', ' ').split()[0]
             if replyname!=self.username and self.username!=author['nick']:
