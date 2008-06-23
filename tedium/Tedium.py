@@ -19,7 +19,7 @@
 
 """Core; currently, everything except CGI and invocation."""
 
-import urllib, urllib2, os, os.path, sys, spambayes.storage
+import httplib, urllib, urllib2, os, os.path, sys, spambayes.storage
 import datetime, time, smtplib, textwrap, pwd, getopt
 
 try:
@@ -191,6 +191,8 @@ class Tedium:
             data = f.read()
             f.close()
             status = etree_fromstring(data)
+            if status.tag=='error':
+                return
             if status.tag!='user':
                 raise tedium.TediumError('Twitter response was not an XML doc with root user')
             status = self._extract_from_xml(status)
@@ -198,6 +200,8 @@ class Tedium:
             if my_status!=None:
                 self.set_conf('current_status', my_status)
         except urllib2.URLError:
+            pass
+        except httplib.BadStatusLine: # naughty Twitter
             pass
         except:
             if data!=None:
@@ -223,7 +227,7 @@ class Tedium:
                 if tweet.tag!='status':
                   raise tedium.TedimuError('Twitter response was not a list of statuses')
                 published = self.process_tweet(tweet, c)
-                if published > max_published or max_published==None:
+                if published!=None and (published > max_published or max_published==None):
                     max_published = published
             c.close()
             if max_published!=None:
@@ -439,7 +443,15 @@ class Tedium:
             author_id = self.make_author(tweet['user'], cursor)
         else:
             author_id = self.update_author(tweet['user'], cursor)
-        return self.make_tweet(tweet['id'], author_id, tweet['text'], tweet['created_at'], cursor)
+        try:
+            return self.make_tweet(tweet['id'], author_id, tweet['text'], tweet['created_at'], cursor)
+        except sqlite.IntegrityError:
+            #print "Already had that tweet (%s, %s: '%s' by %i)? Huh..." % (tweet['id'], tweet['created_at'], tweet['text'], author_id)
+            return None
+        except:
+            print "Could not make tweet..."
+            traceback.print_exc()
+            return None
 
     def _should_skip_tweet(self, tweet_row, skip_spam=False, skip_replies=False, cursor=None):
         fixed_filter = self.get_conf('fixed_filter').strip()
@@ -523,7 +535,10 @@ class Tedium:
             last_viewed = self.get_conf('last_viewed')
             if last_viewed==None:
                 last_viewed = '1970-01-01 00:00:00'
-            c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
+            if last_digest!=None:
+                c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? AND tweet_published < ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, last_digest, number_to_fetch])
+            else:
+                c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published DESC LIMIT ?", [last_viewed, number_to_fetch])
             rows1 = c.fetchall()
             rows.extend(rows1)
 
