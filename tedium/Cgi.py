@@ -128,6 +128,15 @@ class Driver:
                         include = 0
                     self.tedium.update_author_include_replies_from(aid, include)
             do_save = True
+        if form.getfirst('set-author-ignore-until-now-plus')!=None:
+            # author-<aid> = <seconds>
+            for ak in form.keys():
+                if ak.startswith('author-'):
+                    bits = ak.split('-')
+                    aid = int(bits[1])
+                    until = int(time.time()) + int(form.getfirst(ak))
+                    self.tedium.update_author_ignore_until(aid, until)
+            do_save = True
         if form.getfirst('classify')!=None:
             # tweet-<tid> = <0|1|2>
             for tk in form.keys():
