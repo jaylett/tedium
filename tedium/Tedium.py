@@ -523,7 +523,7 @@ class Tedium:
                     if real!=None:
                         format_email = '%s <%s>' % (real, email_address)
                     else:
-                        format_email = email_address
+                        format_email = '%s <%s>' % ('Tedium', email_address)
                     msg['From'] = format_email
                     msg['To'] = format_email
                     s = smtplib.SMTP()
