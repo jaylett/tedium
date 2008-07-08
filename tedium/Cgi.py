@@ -23,7 +23,7 @@ Tedium's CGI driver.
 
 import tedium
 
-import re, os, os.path, sys, cgi, cgitb, urllib, urlparse
+import re, os, os.path, sys, cgi, cgitb, urllib, urlparse, time
 from jinja import Template, Context, FileSystemLoader
 from jinja.filters import stringfilter
 from jinja.lib import stdlib
