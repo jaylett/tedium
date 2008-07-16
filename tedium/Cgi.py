@@ -33,9 +33,9 @@ user_linkifier = re.compile('@([A-Za-z0-9_]+)')
 
 def htmlify(text):
     # link anything using common URI
-    text = re.sub(linkifier, '<a target="_new" href="\g<0>">\g<0></a>', text)
+    text = re.sub(linkifier, '<a target="_blank" href="\g<0>">\g<0></a>', text)
     # link @username
-    text = re.sub(user_linkifier, '<a target="_new" href="http://twitter.com/\g<1>">\g<0></a>', text)
+    text = re.sub(user_linkifier, '<a target="_blank" href="http://twitter.com/\g<1>">\g<0></a>', text)
     return text
 
 def safe_attribute(text):
