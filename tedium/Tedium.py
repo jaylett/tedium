@@ -20,7 +20,7 @@
 """Core; currently, everything except CGI and invocation."""
 
 import httplib, urllib, urllib2, os, os.path, sys, spambayes.storage
-import datetime, time, smtplib, textwrap, pwd, getopt
+import datetime, time, smtplib, textwrap, pwd, getopt, xml.parsers.expat
 
 try:
     from xml.etree.ElementTree import fromstring as etree_fromstring # python 2.5
@@ -212,10 +212,10 @@ class Tedium:
             raise
         
         if self.last_updated==None:
-            uri = 'https://twitter.com/statuses/friends_timeline.xml'
+            uri = 'https://twitter.com/statuses/friends_timeline.xml?count=200'
         else:
             # HTTP formatted date
-            uri = 'https://twitter.com/statuses/friends_timeline.xml?since=%s' % urllib.quote_plus(self.last_updated)
+            uri = 'https://twitter.com/statuses/friends_timeline.xml?since=%s&count=200' % urllib.quote_plus(self.last_updated)
         data = None
         try:
             c = self.db.cursor()
@@ -236,6 +236,12 @@ class Tedium:
             if max_published!=None:
                 self.set_conf('last_updated', max_published)
             self.save_changes()
+        except xml.parsers.expat.ExpatError, e:
+            # Twitter are just lame. Apparently they don't know how to
+            # program their load balancers (amongst, you know,
+            # everything else).
+            c.close()
+            # raise tedium.TediumError('Could not fetch updates from Twitter', e)
         except urllib2.URLError, e:
             try:
                 if e.code==401:
