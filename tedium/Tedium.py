@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 10
+DB_VERSION = 11
 
 def de_attributify(t):
     t = t.replace('&quot;', '"')
@@ -117,7 +117,7 @@ class Tedium:
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0, author_ignore_until DATETIME)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0, author_ignore_until DATETIME, author_priority INTEGER NOT NULL DEFAULT 0)")
         self._configure(cursor)
 
     def reconfigure(self):
@@ -184,6 +184,9 @@ class Tedium:
         if old_version<10:
             cursor.execute("ALTER TABLE authors ADD COLUMN author_ignore_until DATETIME")
             cursor.execute("UPDATE metadata SET version=10")
+        if old_version<11:
+            cursor.execute("ALTER TABLE authors ADD COLUMN author_priority INTEGER NOT NULL DEFAULT 0")
+            cursor.execute("UPDATE metadata SET version=11")
             
     def update(self):
         # get our latest tweet
@@ -308,12 +311,12 @@ class Tedium:
         u = self._author_cache.get(id)
         if u!=None:
             return u
-        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id, author_include_replies_from, author_ignore_until FROM authors WHERE author_id=?", [int(id)])
+        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id, author_include_replies_from, author_ignore_until, author_priority FROM authors WHERE author_id=?", [int(id)])
         row = cursor.fetchone()
         if row==None:
             return None
         else:
-            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies_to': row[4], 'include_replies_from': row[6], 'ignore_until': row[7] }
+            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies_to': row[4], 'include_replies_from': row[6], 'ignore_until': row[7], 'priority': row[8] }
             if row[3]=='true':
                 u['protected'] = True
             else:
@@ -472,7 +475,7 @@ class Tedium:
             traceback.print_exc()
             return None
 
-    def _should_skip_tweet(self, tweet_row, skip_spam=False, skip_replies=False, cursor=None):
+    def _should_skip_tweet(self, tweet_row, skip_spam=False, skip_replies=False, cursor=None, min_author_priority=0):
         fixed_filter = self.get_conf('fixed_filter').strip()
         text = tweet_row[1].strip()
         if fixed_filter!='':
@@ -489,6 +492,8 @@ class Tedium:
         author = self.get_author(tweet_row[2], c)
         if author['ignore_until']>time.time():
             return True
+        if author['priority'] < min_author_priority:
+            return True
         if skip_replies and author['include_replies_from']==0 and text[0]=='@':
             replyname = text[1:].replace(':', ' ').split()[0]
             if replyname!=self.username and self.username!=author['nick']:
@@ -502,7 +507,7 @@ class Tedium:
             c.close()
         return False
 
-    def digest(self, email_address, real=None):
+    def digest(self, email_address, real=None, min_author_priority=0):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
         c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
@@ -511,7 +516,7 @@ class Tedium:
             digest = ''
             tw = textwrap.TextWrapper(initial_indent = ' '*8, subsequent_indent = ' '*8)
             for row in rows:
-                if self._should_skip_tweet(row, skip_spam=True, skip_replies=True, cursor=c):
+                if self._should_skip_tweet(row, skip_spam=True, skip_replies=True, cursor=c, min_author_priority=min_author_priority):
                     continue
                 author = self.get_author(row[2], c)
                 digest_keys = {'time': row[0], 'nick': author['nick'], 'fn': author['fn'], 'tweet': row[1].strip(), 'wrapped_tweet': tw.fill(row[1])}
@@ -538,7 +543,12 @@ class Tedium:
                     s.close()
 
             max_published = max(map(lambda x: x[3], rows))
-            self.set_conf('last_digest', max_published)
+            # Don't update the last digest time unless we were showing
+            # replies from all users. This means you'll see some
+            # multiple times, but is much more efficient than recording
+            # whether we've shown each tweet individually in the database
+            if min_author_priority==0:
+                self.set_conf('last_digest', max_published)
             self.save_changes()
         c.close()
 

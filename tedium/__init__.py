@@ -79,7 +79,7 @@ class TediumError(RuntimeError):
         self.aux = aux
 
 def usage():
-    print u"Usage: %s [options] [email [name]]" % sys.argv[0]
+    print u"Usage: %s [options] [email [name [min_priority]]]" % sys.argv[0]
     print u"Options:"
     print u"\t--help\t\tThis message"
     print u"\t--confdir d\tUse ``d'' instead of ~/.tedium"
@@ -88,7 +88,7 @@ def usage():
     print
     print u"Will force configuration the first time."
     print u"Subsequent runs will update from Twitter."
-    print u"Call with email address and optional name to generate digest."
+    print u"Call with email address and optional name, min priority to generate digest."
     print u"Run as CGI for web interface."
 
 def main():
@@ -125,7 +125,9 @@ def main():
             sys.exit()
 
         if len(args)>0:
-            if len(args)>1:
+            if len(args)>2:
+                t.digest(args[0], args[1], args[2])
+            elif len(args)>1:
                 t.digest(args[0], args[1])
             else:
                 t.digest(args[0])
