@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 11
+DB_VERSION = 12
 
 def de_attributify(t):
     t = t.replace('&quot;', '"')
@@ -116,7 +116,7 @@ class Tedium:
         cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1, fixed_filter VARCHAR(140), view_spam VARCHAR(10) DEFAULT 'all')" % DB_VERSION)
 
     def _initialise_database(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0, tweet_digested INTEGER(1) NOT NULL DEFAULT 0)")
         cursor.execute("CREATE TABLE IF NOT EXISTS authors (author_id INTEGER NOT NULL PRIMARY KEY, author_fn VARCHAR(30) NOT NULL, author_nick VARCHAR(30) NOT NULL, author_protected INTEGER(1), author_avatar VARCHAR(255), author_include_replies INTEGER(1) NOT NULL DEFAULT 0, author_include_replies_from INTEGER(1) NOT NULL DEFAULT 0, author_ignore_until DATETIME, author_priority INTEGER NOT NULL DEFAULT 0)")
         self._configure(cursor)
 
@@ -187,6 +187,9 @@ class Tedium:
         if old_version<11:
             cursor.execute("ALTER TABLE authors ADD COLUMN author_priority INTEGER NOT NULL DEFAULT 0")
             cursor.execute("UPDATE metadata SET version=11")
+        if old_version<12:
+            cursor.execute("ALTER TABLE tweets ADD COLUMN tweet_digested INTEGER(1) NOT NULL DEFAULT 0")
+            cursor.execute("UPDATE metadata SET version=12")
             
     def update(self):
         # get our latest tweet
@@ -510,17 +513,19 @@ class Tedium:
     def digest(self, email_address, real=None, min_author_priority=0):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
-        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
+        c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id, tweet_digested FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
         rows = c.fetchall()
         if len(rows)>0:
             digest = ''
             tw = textwrap.TextWrapper(initial_indent = ' '*8, subsequent_indent = ' '*8)
             for row in rows:
-                if self._should_skip_tweet(row, skip_spam=True, skip_replies=True, cursor=c, min_author_priority=min_author_priority):
+                if row[6]==1 or self._should_skip_tweet(row, skip_spam=True, skip_replies=True, cursor=c, min_author_priority=min_author_priority):
                     continue
                 author = self.get_author(row[2], c)
                 digest_keys = {'time': row[0], 'nick': author['nick'], 'fn': author['fn'], 'tweet': row[1].strip(), 'wrapped_tweet': tw.fill(row[1])}
                 digest += self.digest_line(digest_keys)
+                if min_author_priority>1:
+                    c.execute("UPDATE tweets SET tweet_digested=1 WHERE tweet_id=?", [row[5]])
             if digest!='':
                 digest = "Hi %s. Here's your twitter digest:\n\n%s" % (self.username, digest)
 
