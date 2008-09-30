@@ -126,7 +126,11 @@ def main():
 
         if len(args)>0:
             if len(args)>2:
-                t.digest(args[0], args[1], args[2])
+                try:
+                    min_priority = int(args[2])
+                except ValueError:
+                    min_priority = 0
+                t.digest(args[0], args[1], min_priority)
             elif len(args)>1:
                 t.digest(args[0], args[1])
             else:
