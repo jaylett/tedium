@@ -20,7 +20,8 @@ input[type=submit].replies-option-disabled { background: url("icons/cross.png") 
 input[type=image] { border: none; margin: 1px 1px 1px 1px; padding: 0 3px 0 3px; vertical-align: middle; }
 input[type=image][src="icons/email.png"].spamminess-selected { background-color: green; }
 input[type=image][src="icons/email_error.png"].spamminess-selected { background-color: red; }
-#status-form { border-bottom: 1px solid black; padding-bottom: 1em; margin-bottom: 1em; display: block; font-size: 100%; }
+#status-form { margin-bottom: 1em; display: block; font-size: 100%; }
+ol { border-top: 1px solid black; padding-top: 1em; margin-top: 1em; display: block; font-size: 100%; }
 #status-form input { border: none; font-size: 100%; border: 1px solid white; }
 #status-form input:focus, #status-form input:hover { border: 1px solid black; }
 .reply-button { margin: 1px 1px 1px 5px; vertical-align: middle; cursor: pointer; }

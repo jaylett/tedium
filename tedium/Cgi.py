@@ -23,12 +23,12 @@ Tedium's CGI driver.
 
 import tedium
 
-import re, os, os.path, sys, cgi, cgitb, urllib, urlparse, time
+import re, os, os.path, sys, cgi, cgitb, urllib, urllib2, urlparse, time
 from jinja import Template, Context, FileSystemLoader
 from jinja.filters import stringfilter
 from jinja.lib import stdlib
 
-linkifier = re.compile('[a-zA-Z]+://[a-zA-Z0-9\.-]*[^ )?#]*(\?[^ )#]*)?(#[^ )]*)?')
+linkifier = re.compile('[a-zA-Z]+://[a-zA-Z0-9\.-]*[^ )?#]*[^ )?#.,](\?[^ )#]*)?(#[^ )]*)?')
 user_linkifier = re.compile('@([A-Za-z0-9_]+)')
 
 def htmlify(text):
@@ -103,6 +103,14 @@ class Driver:
         self._auth()
         cgitb.enable()
         do_save = False
+
+        if form.getfirst('long-uri')!=None:
+            res = urllib2.urlopen('http://is.gd/api.php?longurl=%s' % urllib.urlencode({'long-uri': form.getfirst('long-uri')}))
+            print "Content-Type: text/plain"
+            print
+            print res.read()
+            res.close()
+            return
 
         if form.getfirst('set-author-include-replies-to')!=None:
             # author-<aid> = <show|>

@@ -47,5 +47,37 @@ function tedium_funkify() {
     element.appendChild(n);
     n = document.createTextNode(' starts a reply to that tweet.');
     element.appendChild(n);
+
+    element = document.getElementById('url-form');
+    element.onsubmit = function() {
+	submit = document.getElementById('shorten-uri');
+
+	function handler() {
+	    if (this.readyState==4 && this.status==200) {
+		elt = document.getElementById('short-uri');
+		elt.value = this.responseText;
+		submit.value = ">> Shorten!";
+		append = document.getElementById('append-uri');
+		append.style.display = '';
+		append.onclick = function() {
+		    target = document.getElementById('status');
+		    target.value = target.value + ': ' + elt.value;
+		    return false;
+		};
+	    }
+	}
+
+        var client = new XMLHttpRequest();
+	client.onreadystatechange = handler;
+	client.open("POST", 'index.cgi', true);
+	client.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        elt = document.getElementById('long-uri');
+	client.send('long-uri=' + escape(elt.value));
+	submit.value = "Shortening";
+	elt = document.getElementById('short-uri');
+	elt.value = '';
+        return false;
+    };
+    element.style.display = 'block';
 };
 tedium_funkify();

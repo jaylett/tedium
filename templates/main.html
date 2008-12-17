@@ -5,10 +5,17 @@
 {% block "content" %}
     <form id='status-form' method='post'>
       <label for='status'>Current status</label>:
-      <input type='text' name='status' value='{{my_status | escape_apos }}' id='status' width='{{ tedium.username | max_tweet_length }}' size='{{ tedium.username | max_tweet_length }}' />
+      <input type='text' name='status' value='{{my_status | escape_apos }}' id='status' size='90' maxlength='{{ tedium.username | max_tweet_length }}' />
       <input type='submit' name='update-status' value='&gt;&gt; Update!' />
       <input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
       <input type='hidden' name='last_digest' value='{{ last_digest }}' />
+    </form>
+    <form style='display: none;' id='url-form' method='post'>
+      <label for='uri'>Long URI</label>:
+      <input type='text' name='long-uri' id='long-uri' size='50' maxlength='1000' />
+      <input type='submit' name='shorten-uri' id='shorten-uri' value='&gt;&gt; Shorten!' />
+      <input type='text' name='short-uri' id='short-uri' size='20' />
+      <input style='display: none;' type='submit' name='append-uri' id='append-uri' value='^^ Append' />
     </form>
 
     <ol>
