@@ -12,28 +12,49 @@ function tedium_funkify() {
 	}
 	return false;
     };
+    var get_children_text = function(elt) {
+	text = '';
+	for (var j=0; j < elt.childNodes.length; j++) {
+	    var t = elt.childNodes[j].nodeValue;
+	    if (t!=null) {
+		text = text + t;
+	    }
+	    text = text + get_children_text(elt.childNodes[j]);
+	}
+	return text;
+    };
     var elements = document.getElementsByTagName('*');
     var current_author = '';
+    var current_retweet = null;
+    var tweetbox = document.getElementById('status');
     for (var i = 0; i < elements.length; i++){
 	if (check(elements[i], 'author-name')) {
-	    current_author = '';
-	    for (var j=0; j < elements[i].childNodes.length; j++) {
-		var t = elements[i].childNodes[j].nodeValue;
-		if (t!=null) {
-		    current_author = current_author + t;
-		}
-	    }
+	    current_author = get_children_text(elements[i]);
 	}
+	if (check(elements[i], 'tweet') && current_retweet) {
+	    var current_tweet = get_children_text(elements[i]);
+	    current_retweet.onclick = function(tweet, author) { return function() { var val =  'RT @' + author + ': ' + tweet; tweetbox.value = val; tweetbox.focus(); if (val.length > tweetbox.maxLength) { alert('RT will be too long!'); } return true; } }(current_tweet, current_author);
+	    current_retweet = null;
+	}
+
 	if (check(elements[i], 'tweet-tools')) {
 	    var reply = document.createElement('img');
 	    reply.className = 'reply-button';
-	    reply.src = 'icons/arrow_right.png';
+	    reply.src = 'icons/arrow_redo.png';
 	    reply.width = 16;
 	    reply.height = 16;
 	    reply.title = 'Reply to this tweet';
-	    var tweetbox = document.getElementById('status');
 	    reply.onclick = function(author) { return function() { tweetbox.value = '@' + author + ': '; tweetbox.focus(); return true; } }(current_author);
 	    elements[i].appendChild(reply);
+
+	    var retweet = document.createElement('img');
+	    retweet.className = 'reply-button';
+	    retweet.src = 'icons/arrow_right.png';
+	    retweet.width = 16;
+	    retweet.height = 16;
+	    retweet.title = 'Retweet';
+	    current_retweet = retweet;
+	    elements[i].appendChild(retweet);
 	}
     }
     var element = document.getElementById('key');
