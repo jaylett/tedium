@@ -63,10 +63,16 @@ function tedium_funkify() {
     n = document.createElement('img');
     n.width = 16;
     n.height = 16;
-    n.alt = 'arrow';
+    n.src = 'icons/arrow_redo.png';
+    element.appendChild(n);
+    n = document.createTextNode(' starts a reply to that tweet, or ');
+    element.appendChild(n);
+    n = document.createElement('img');
+    n.width = 16;
+    n.height = 16;
     n.src = 'icons/arrow_right.png';
     element.appendChild(n);
-    n = document.createTextNode(' starts a reply to that tweet.');
+    n = document.createTextNode(' retweets.');
     element.appendChild(n);
 
     element = document.getElementById('url-form');
