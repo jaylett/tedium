@@ -281,7 +281,7 @@ class Driver:
             spam = spam,
             cssfile = self._ponder_stylesheet(),
             fixed_filter = self.tedium.get_conf('fixed_filter')
-            )
+            ).encode('utf-8')
         
         if not self.is_test and len(tweets)>0:
             max_published = max(map(lambda x: x['published'], tweets))
