@@ -1,6 +1,6 @@
 # Tedium CGI interface
 #
-# (c) Copyright James Aylett 2008
+# (c) Copyright James Aylett 2009
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -24,9 +24,7 @@ Tedium's CGI driver.
 import tedium
 
 import re, os, os.path, sys, cgi, cgitb, urllib, urllib2, urlparse, time
-from jinja import Template, Context, FileSystemLoader
-from jinja.filters import stringfilter
-from jinja.lib import stdlib
+from jinja2 import Environment, FileSystemLoader
 
 linkifier = re.compile('[a-zA-Z]+://[a-zA-Z0-9\.-]*[^ )?#]*[^ )?#.,](\?[^ )#]*)?(#[^ )]*)?')
 user_linkifier = re.compile('@([A-Za-z0-9_]+)')
@@ -53,27 +51,29 @@ def max_tweet_length(text):
 def escape_apos(text):
     return text.replace("'", '&apos;')
 
-stdlib.register_filter('htmlify', stringfilter(htmlify))
-stdlib.register_filter('safe_attribute', stringfilter(safe_attribute))
-stdlib.register_filter('max_tweet_length', stringfilter(max_tweet_length))
-stdlib.register_filter('escape_apos', stringfilter(escape_apos))
-
 class Driver:
     """Tedium's CGI driver; construct with a Tedium object, then call do_get()."""
     def __init__(self, _tedium, is_test=False):
         """Initialise driver with a given Tedium object."""
         self.tedium = _tedium
         self.is_test = is_test
-        self.templates_dir = os.path.join(os.path.dirname(tedium.__file__), '../templates')
+        template_dir = os.path.join(os.path.dirname(tedium.__file__), '../templates')
+        self.env = Environment(loader=FileSystemLoader(template_dir))
+        self.env.filters['htmlify'] = htmlify
+        self.env.filters['safe_attribute'] = safe_attribute
+        self.env.filters['max_tweet_length'] = max_tweet_length
+        self.env.filters['escape_apos'] = escape_apos
 
     def _auth(self):
         if self.is_test:
             return
         if os.environ.get('REMOTE_USER')!=self.tedium.username:
             print "Content-Type: text/html; charset=utf-8\r\n"
-            tmpl = Template('auth_required', FileSystemLoader(self.templates_dir))
-            c = Context({'tedium': self.tedium, 'cssfile':self._ponder_stylesheet()})
-            print tmpl.render(c).encode('utf-8')
+            tmpl = self.env.get_template('auth_required.html')
+            print tmpl.render(
+                tedium=self.tedium,
+                cssfile=self._ponder_stylesheet()
+            )
             sys.exit(0)
 
     def _ponder_stylesheet(self):
@@ -266,23 +266,22 @@ class Driver:
                     tweet['_is_spam'] = True
                 tweet['_spam_score'] = self.tedium.tweet_spam_score(tweet['id'])
 
-        tmpl = Template('main', FileSystemLoader(self.templates_dir))
+        tmpl = self.env.get_template('main.html')
         # WARNING: *ensure* that tweets.tweet is entity escapes wrt XML
         # builtins. my_status carries the same warning. (Use the escape_apos
         # filter to put my_status in a '-delimited attribute, eg for <input>.)
-        c = Context({
-            'my_status': my_status,
-            'tedium': self.tedium,
-            'tweets': tweets,
-            'last_viewed': last_viewed,
-            'last_digest': last_digest,
-            'last_sequence': last_sequence,
-            'replies': replies,
-            'spam': spam,
-            'cssfile': self._ponder_stylesheet(),
-            'fixed_filter': self.tedium.get_conf('fixed_filter')
-            })
-        print tmpl.render(c).encode('utf-8')
+        print tmpl.render(
+            my_status = my_status,
+            tedium = self.tedium,
+            tweets = tweets,
+            last_viewed = last_viewed,
+            last_digest = last_digest,
+            last_sequence = last_sequence,
+            replies = replies,
+            spam = spam,
+            cssfile = self._ponder_stylesheet(),
+            fixed_filter = self.tedium.get_conf('fixed_filter')
+            )
         
         if not self.is_test and len(tweets)>0:
             max_published = max(map(lambda x: x['published'], tweets))

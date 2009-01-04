@@ -1,7 +1,7 @@
-{% extends "base" %}
+{% extends "base.html" %}
 
-{% block "title" %}Permission denied{% endblock %}
+{% block title %}Permission denied{% endblock %}
 
-{% block "content" %}
+{% block content %}
 <h1>Permission denied</h1><p>You <em>must</em> set tedium up so it's sitting behind HTTP authentication. If you know what you're doing and disagree, change the source code. If not, set it up. I can't easily police whether you only access it encrypted, or across otherwise-secured transports, so there you're on your own. Sorry.</p>
 {% endblock %}

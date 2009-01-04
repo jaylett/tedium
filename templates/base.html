@@ -1,15 +1,15 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html lang='en' xml:lang='en' xmlns='http://www.w3.org/1999/xhtml'>
   <head>
-    <title>{% block "title" %}Tedium{% endblock %}</title>
+    <title>{% block title %}Tedium{% endblock %}</title>
 {% if cssfile %}<link type='text/css' rel='stylesheet' href='{{cssfile}}' />{% endif %}
   </head>
   <body>
-{% block "content" %}{% endblock %}
-{% block "footer" %}
+{% block content %}{% endblock %}
+{% block footer %}
 <address><a href='http://tartarus.org/james/computers/tedium/'>tedium</a> v{{ tedium.VERSION }} copyright <a href='http://tartarus.org/james/'>James Aylett</a>. Icons from <a href='http://www.famfamfam.com/lab/icons/silk/'>FamFamFam</a>.</address>
 {% endblock %}
 
-{% block "tail" %}{% endblock %}
+{% block tail %}{% endblock %}
   </body>
 </html>

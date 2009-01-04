@@ -2,7 +2,7 @@
 #
 # Tedium runner
 #
-# Copyright (C) 2008 James Aylett
+# Copyright (C) 2009 James Aylett
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -19,21 +19,20 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
 # USA
 #
-# FEATURE: temporary ban: 24H block on this user (for conferences)
 # FIXME: spam unlearn then learn doesn't seem to work properly
+# FEATURE: if can't post tweet (or do some other operation), pend it
+# FEATURE: email digest and escapable entities, waaah (works, but... eww)
 # FEATURE: use jinja for email digest? (split into separate module if so)
-# FEATURE: update to jinja > 1.0
+# FEATURE: click on any username to configure to/from/ban/following options
+# FEATURE: HEAD tinyurls etc. to put a title attribute on with final URL
+#          or, indeed, expand them fully
 # FIXME: assumes UTC coming out of twitter (however this is probably true)
 #
-# Prereqs on a Mac:
+# Prereqs (most should work fine via easy_install):
 #
-# sudo easy_install pysqlite
-#
+# pysqlite
+# jinja 2.1.1 or later
 # spambayes
-#
-# you also need jinja; I suspect that >= 1.0 won't work, as I'm currently
-# using 0.9 or so packaged for Debian. This is my problem to fix at some
-# point... :-/
 
 import tedium
 

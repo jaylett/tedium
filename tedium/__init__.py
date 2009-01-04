@@ -1,6 +1,6 @@
 # Tedium library
 #
-# (c) Copyright James Aylett 2008
+# (c) Copyright James Aylett 2009
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -64,7 +64,7 @@ Invoke as: tedium.main().
 
 import getopt, sys, os
 
-import tedium.Tedium, tedium.Cgi
+import tedium.Tedium
 
 __all__ = ['Cgi', 'Tedium']
 
@@ -136,6 +136,7 @@ def main():
             else:
                 t.digest(args[0])
         elif os.environ.get('GATEWAY_INTERFACE')=='CGI/1.1':
+            import tedium.Cgi
             driver = Cgi.Driver(t, is_test)
             driver.process_request()
         else:
