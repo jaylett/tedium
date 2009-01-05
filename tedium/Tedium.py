@@ -1,6 +1,6 @@
 # Tedium core
 #
-# Copyright (C) 2008 James Aylett
+# Copyright (C) 2009 James Aylett
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -33,7 +33,7 @@ import email.Charset
 
 import tedium
 
-DB_VERSION = 12
+DB_VERSION = 13
 
 def de_attributify(t):
     t = t.replace('&quot;', '"')
@@ -73,12 +73,13 @@ class Tedium:
         self.password = ''
         self._ensure_database(c)
 
-        c.execute("SELECT last_updated, username, password, digest_format FROM metadata LIMIT 1")
+        c.execute("SELECT last_updated, last_replies, username, password, digest_format FROM metadata LIMIT 1")
         row = c.fetchone()
         self.last_updated = row[0]
-        self.username = row[1]
-        self.password = row[2]
-        self.digest_format = row[3]
+        self.last_replies = row[1]
+        self.username = row[2]
+        self.password = row[3]
+        self.digest_format = row[4]
         if self.username==None or self.password==None:
             self._configure(c)
         self.db.commit()
@@ -113,7 +114,7 @@ class Tedium:
                 self._upgrade_database(row[0], cursor)
 
     def _create_if_no_metadata_table(self, cursor):
-        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1, fixed_filter VARCHAR(140), view_spam VARCHAR(10) DEFAULT 'all')" % DB_VERSION)
+        cursor.execute("CREATE TABLE IF NOT EXISTS metadata (version INTEGER NOT NULL DEFAULT %i, last_updated DATETIME, username VARCHAR(30), password VARCHAR(30), last_digest DATETIME, last_viewed DATETIME, digest_format VARCHAR(20), current_status VARCHAR(140), view_replies VARCHAR(10), last_sequence INTEGER NOT NULL DEFAULT 1, fixed_filter VARCHAR(140), view_spam VARCHAR(10) DEFAULT 'all', last_replies DATETIME)" % DB_VERSION)
 
     def _initialise_database(self, cursor):
         cursor.execute("CREATE TABLE IF NOT EXISTS tweets (tweet_id INTEGER NOT NULL PRIMARY KEY, tweet_text VARCHAR(150) NOT NULL, tweet_author INTEGER NOT NULL, tweet_published DATETIME NOT NULL, tweet_spam INTEGER DEFAULT 0, tweet_digested INTEGER(1) NOT NULL DEFAULT 0)")
@@ -190,6 +191,9 @@ class Tedium:
         if old_version<12:
             cursor.execute("ALTER TABLE tweets ADD COLUMN tweet_digested INTEGER(1) NOT NULL DEFAULT 0")
             cursor.execute("UPDATE metadata SET version=12")
+        if old_version<13:
+            cursor.execute("ALTER TABLE metadata ADD COLUMN last_replies DATETIME")
+            cursor.execute("UPDATE metadata SET version=13")
             
     def update(self):
         # get our latest tweet
@@ -224,30 +228,35 @@ class Tedium:
             uri = 'https://twitter.com/statuses/friends_timeline.xml?since=%s&count=200' % urllib.quote_plus(self.last_updated)
         data = None
         try:
-            c = self.db.cursor()
             f = urllib2.urlopen(uri)
             data = f.read()
             f.close()
-            tweets = etree_fromstring(data)
-            max_published = None
-            if tweets.tag!='statuses':
-              raise tedium.TediumError('Twitter response was not an XML doc with root statuses')
-            for tweet in tweets:
-                if tweet.tag!='status':
-                  raise tedium.TedimuError('Twitter response was not a list of statuses')
-                published = self.process_tweet(tweet, c)
-                if published!=None and (published > max_published or max_published==None):
-                    max_published = published
-            c.close()
+            max_published = self.process_tweets(data)
             if max_published!=None:
                 self.set_conf('last_updated', max_published)
+            # Because if the next bit goes wrong we don't want to lose this
+            # date and have to do it again.
+            self.save_changes()
+
+            # And do the same for replies (which will sometimes be duplicates)
+            if self.last_replies==None:
+                uri = 'https://twitter.com/statuses/replies.xml'
+            else:
+                # HTTP formatted date
+                uri = 'https://twitter.com/statuses/replies.xml?since=%s' % urllib.quote_plus(self.last_replies)
+            f = urllib2.urlopen(uri)
+            data = f.read()
+            f.close()
+            max_published = self.process_tweets(data)
+            if max_published!=None:
+                self.set_conf('last_replies', max_published)
             self.save_changes()
         except xml.parsers.expat.ExpatError, e:
             # Twitter are just lame. Apparently they don't know how to
             # program their load balancers (amongst, you know,
             # everything else).
-            c.close()
             # raise tedium.TediumError('Could not fetch updates from Twitter', e)
+            pass
         except urllib2.URLError, e:
             try:
                 if e.code==401:
@@ -266,6 +275,28 @@ class Tedium:
             if data!=None:
 		print "Failed to cope with '%s'" % data
             raise
+
+    def process_tweets(self, tweet_data):
+        try:
+            c = self.db.cursor()
+            tweets = etree_fromstring(tweet_data)
+            max_published = None
+            if tweets.tag!='statuses':
+                raise tedium.TediumError('Twitter response was not an XML doc with root statuses')
+            for tweet in tweets:
+                if tweet.tag!='status':
+                    raise tedium.TedimuError('Twitter response was not a list of statuses')
+                try:
+                    published = self.process_tweet(tweet, c)
+                    if published!=None and (published > max_published or max_published==None):
+                        max_published = published
+                except sqlite.IntegrityError:
+                    # it's already in there because of a previous reply
+                    # weirdness or something
+                    pass
+            return max_published
+        finally:
+            c.close()
         
     def get_conf(self, confname, default=None):
         """Get a config option."""
@@ -495,17 +526,20 @@ class Tedium:
         author = self.get_author(tweet_row[2], c)
         if author['ignore_until']>time.time():
             return True
-        if author['priority'] < min_author_priority:
-            return True
+        reply_to_me = False
         if skip_replies and author['include_replies_from']==0 and text[0]=='@':
             replyname = text[1:].replace(':', ' ').split()[0]
-            if replyname!=self.username and self.username!=author['nick']:
+            if replyname==self.username or self.username==author['nick']:
+                reply_to_me = True
+            else:
                 if replyname!='':
                     a = self.get_author_by_username(replyname, c)
                     if a==None or not a['include_replies_to']:
                         if cursor==None:
                             c.close()
                         return True
+        if author['priority'] < min_author_priority and not reply_to_me:
+            return True
         if cursor==None:
             c.close()
         return False
