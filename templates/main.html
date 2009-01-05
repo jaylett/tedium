@@ -41,12 +41,21 @@ title='Unmark as ham'
 {% else %}title='Mark as ham'{% endif %}
 type='image' src='icons/email.png' name='classify' value='Toggle ham' />
 </form>
-{#<span class='spam-score' title='{{ tweet._spam_score }}'>({{ tweet._spam_score | format('%1.1f') }})</span>#}
+<span class='spam-score' title='{{ tweet._spam_score }}'>({{ "%1.1f" | format(tweet._spam_score) }})</span>
 </span><span
 class='tweet'>{{ tweet.tweet | htmlify }}</span></li>
 {% endfor %}
 </ol>
 
+<form id='filter-form' method='post'>
+<input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
+<input type='hidden' name='last_digest' value='{{ last_digest }}' />
+<label for='fixed-filter'>Current filter (comma-separated)</label>:
+<input type='text' id='fixed-filter' name='fixed-filter' value='{{ fixed_filter }}' width='40' size='40' />
+<input type='submit' name='update-filter' value='Set' />
+</form>
+
+<div id='footer'>
 <p id='key'>
 Key: <span class='notindigest'>new since last digest</span>, <span class='new'>new since last view</span>, <span class='protected'>statuses protected for this user</span>, <span class='spam'>detected as spam</span>. <img width='16' height='16' alt='tick' src='icons/tick.png' /> and <img width='16' height='16' alt='cross' src='icons/cross.png' /> indicate the current states, ie whether replies to and from the author in question are currently being shown (click to toggle). <img width='16' height='16' alt='email warning' src='icons/email_error.png' /> and <img width='16' height='16' alt='email' src='icons/email.png' /> control whether a tweet is marked as spam/ham respectively (highlighted if already marked). The number in brackets is the calculated probability of spaminess.
 </p>
@@ -63,14 +72,7 @@ Hiding spam. <a href='?spam=all&amp;last_viewed={{ last_viewed }}&amp;last_diges
 Showing spam. <a href='?spam=none&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Hide spam</a>.
 {% endif %}
 </p>
-
-<form method='POST'>
-<input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
-<input type='hidden' name='last_digest' value='{{ last_digest }}' />
-<label for='fixed-filter'>Current filter (comma-separated)</label>:
-<input type='text' id='fixed-filter' name='fixed-filter' value='{{ fixed_filter }}' width='40' size='40' />
-<input type='submit' name='update-filter' value='Set' />
-</form>
+</div>
 
 {% endblock %}
 
