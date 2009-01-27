@@ -164,7 +164,8 @@ class Driver:
             self.tedium.save_changes()
         if form.getfirst('update-status')!=None:
             new_status = form.getfirst('status')
-            self.tedium.set_status(new_status)
+            in_reply_to = form.getfirst('in-reply-to')
+            self.tedium.set_status(new_status, in_reply_to)
 
         next_uri = os.environ.get('HTTP_REFERER', 'http://tartarus.org/james/tedium/')
         bits = urlparse.urlparse(next_uri)
