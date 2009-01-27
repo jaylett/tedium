@@ -235,7 +235,7 @@ class Tedium:
             if max_published!=None:
                 self.set_conf('last_updated', max_published)
             # Because if the next bit goes wrong we don't want to lose this
-            # date and have to do it again.
+             # date and have to do it again.
             self.save_changes()
 
             # And do the same for replies (which will sometimes be duplicates)
@@ -285,15 +285,19 @@ class Tedium:
                 raise tedium.TediumError('Twitter response was not an XML doc with root statuses')
             for tweet in tweets:
                 if tweet.tag!='status':
-                    raise tedium.TedimuError('Twitter response was not a list of statuses')
+                    raise tedium.TediumError('Twitter response was not a list of statuses')
                 try:
-                    published = self.process_tweet(tweet, c)
+                    try:
+                        published = self.process_tweet(tweet, c)
+                    except sqlite.IntegrityError:
+                        # it's already in there because of a previous reply
+                        # weirdness or something
+                        import traceback
+                        traceback.print_exc()
+                        pass
+                finally:
                     if published!=None and (published > max_published or max_published==None):
                         max_published = published
-                except sqlite.IntegrityError:
-                    # it's already in there because of a previous reply
-                    # weirdness or something
-                    pass
             return max_published
         finally:
             c.close()
@@ -315,11 +319,14 @@ class Tedium:
         cursor.execute("UPDATE metadata SET %s=?" % confname, [value])
         cursor.close()
 
-    def set_status(self, new_status):
+    def set_status(self, new_status, in_reply_to=None):
         """Send a tweet."""
         try:
             uri = 'https://twitter.com/statuses/update.xml'
-            f = urllib2.urlopen(uri, 'status=%s' % urllib.quote_plus(new_status))
+            data = 'status=%s' % urllib.quote_plus(new_status)
+            if in_reply_to:
+                data += '&in_reply_to_status_id=%s' % urllib.quote_plus(in_reply_to)
+            f = urllib2.urlopen(uri, data)
             data = f.read()
             f.close()
             status = etree_fromstring(data)
@@ -512,18 +519,20 @@ class Tedium:
     def _should_skip_tweet(self, tweet_row, skip_spam=False, skip_replies=False, cursor=None, min_author_priority=0):
         fixed_filter = self.get_conf('fixed_filter').strip()
         text = tweet_row[1].strip()
-        if fixed_filter!='':
-            filter_words = map(lambda x: x.lower().strip(), fixed_filter.split(','))
-            for word in filter_words:
-                if word in text.lower():
-                    return True;
-        if skip_spam and self.is_tweet_spam(tweet_row[5]):
-            return True
         if cursor==None:
             c = self.db.cursor()
         else:
             c = cursor
         author = self.get_author(tweet_row[2], c)
+        if fixed_filter!='':
+            filter_words = map(lambda x: x.lower().strip(), fixed_filter.split(','))
+            for word in filter_words:
+                if word in text.lower():
+                    return True
+                if word in author['nick'].lower():
+                    return True
+        if skip_spam and self.is_tweet_spam(tweet_row[5]):
+            return True
         if author['ignore_until']>time.time():
             return True
         reply_to_me = False
