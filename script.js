@@ -27,6 +27,7 @@ function tedium_funkify() {
     var current_author = '';
     var current_retweet = null;
     var tweetbox = document.getElementById('status');
+    var tweetinreply = document.getElementById('in-reply-to');
     for (var i = 0; i < elements.length; i++){
 	if (check(elements[i], 'author-name')) {
 	    current_author = get_children_text(elements[i]);
@@ -44,7 +45,8 @@ function tedium_funkify() {
 	    reply.width = 16;
 	    reply.height = 16;
 	    reply.title = 'Reply to this tweet';
-	    reply.onclick = function(author) { return function() { tweetbox.value = '@' + author + ': '; tweetbox.focus(); return true; } }(current_author);
+	    tweetid = elements[i].id.substring(11);
+	    reply.onclick = function(author, tweetid) { return function() { tweetbox.value = '@' + author + ': '; tweetinreply.value = tweetid; tweetbox.focus(); return true; } }(current_author, tweetid);
 	    elements[i].appendChild(reply);
 
 	    var retweet = document.createElement('img');

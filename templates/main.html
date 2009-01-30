@@ -5,6 +5,7 @@
 {% block content %}
     <form id='status-form' method='post'>
       <label for='status'>Current status</label>:
+      <input type='hidden' id='in-reply-to' name='in-reply-to' />
       <input type='text' name='status' value='{{my_status | escape_apos }}' id='status' size='90' maxlength='{{ tedium.username | max_tweet_length }}' />
       <input type='submit' name='update-status' value='&gt;&gt; Update!' />
       <input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
@@ -27,7 +28,7 @@ replies:
 <form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_to == 1 %}hide{% else %}show{% endif %}' /><input type='hidden' name='last_viewed' value='{{ last_viewed }}' /><input type='hidden' name='last_digest' value='{{ last_digest }}' /><input class='replies-option-{% if tweet.author.include_replies_to == 1 %}enabled{% else %}disabled{% endif %}' type='submit' name='set-author-include-replies-to' value='to' /></form>
 <form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='{% if tweet.author.include_replies_from == 1 %}hide{% else %}show{% endif %}' /><input type='hidden' name='last_viewed' value='{{ last_viewed }}' /><input type='hidden' name='last_digest' value='{{ last_digest }}' /><input class='replies-option-{% if tweet.author.include_replies_from == 1 %}enabled{% else %}disabled{% endif %}' type='submit' name='set-author-include-replies-from' value='from' /></form>
 <form method='post'><input type='hidden' name='author-{{ tweet.author.id }}' value='86400' /><input type='hidden' name='last_viewed' value='{{ last_viewed }}' /><input type='hidden' name='last_digest' value='{{ last_digest }}' /><input type='submit' name='set-author-ignore-until-now-plus' value='sleep' /></form>
-{% endif %}</span><span
+{% endif %}</span><span id='tweettools-{{ tweet.id }}'
 class='tweet-tools'><form method='post'>
 <input type='hidden' name='tweet-{{ tweet.id }}' value='{% if tweet.classified_spamminess == 2 %}0{% else %}2{% endif %}' />
 <input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
