@@ -105,7 +105,7 @@ class Driver:
         do_save = False
 
         if form.getfirst('long-uri')!=None:
-            res = urllib2.urlopen('http://is.gd/api.php?longurl=%s' % urllib.urlencode({'long-uri': form.getfirst('long-uri')}))
+            res = urllib2.urlopen('http://is.gd/api.php?%s' % urllib.urlencode({'longurl': form.getfirst('long-uri')}))
             print "Content-Type: text/plain"
             print
             print res.read()
