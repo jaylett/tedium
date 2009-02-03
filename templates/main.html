@@ -8,6 +8,9 @@
       <input type='hidden' id='in-reply-to' name='in-reply-to' />
       <input type='text' name='status' value='{{my_status | escape_apos }}' id='status' size='90' maxlength='{{ tedium.username | max_tweet_length }}' />
       <input type='submit' name='update-status' value='&gt;&gt; Update!' />
+      <div style='display: none;' id='retweet-warning'>
+	Warning: too long for retweeting!
+      </div>
       <input type='hidden' name='last_viewed' value='{{ last_viewed }}' />
       <input type='hidden' name='last_digest' value='{{ last_digest }}' />
     </form>
@@ -61,7 +64,7 @@ class='tweet'>{{ tweet.tweet | htmlify }}</span></li>
 Key: <span class='notindigest'>new since last digest</span>, <span class='new'>new since last view</span>, <span class='protected'>statuses protected for this user</span>, <span class='spam'>detected as spam</span>. <img width='16' height='16' alt='tick' src='icons/tick.png' /> and <img width='16' height='16' alt='cross' src='icons/cross.png' /> indicate the current states, ie whether replies to and from the author in question are currently being shown (click to toggle). <img width='16' height='16' alt='email warning' src='icons/email_error.png' /> and <img width='16' height='16' alt='email' src='icons/email.png' /> control whether a tweet is marked as spam/ham respectively (highlighted if already marked). The number in brackets is the calculated probability of spaminess.
 </p>
 
-<p><a target='_blank' href='http://twitter.com/'>Twitter</a> interface for <a target='_blank' href='http://twitter.com/{{ tedium.username | safe_attribute }}'>{{ tedium.username | escape }}</a>.
+<p><a target='_blank' href='http://twitter.com/'>Twitter</a> interface for <a id='username' target='_blank' href='http://twitter.com/{{ tedium.username | safe_attribute }}'>{{ tedium.username | escape }}</a>.
 {% if replies == 'digest' %}
 Showing some replies. <a href='?replies=all&amp;last_viewed={{ last_viewed }}&amp;last_digest={{ last_digest }}&amp;last_sequence={{ last_sequence }}'>Show all replies</a>.
 {% else %}

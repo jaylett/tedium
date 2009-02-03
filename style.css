@@ -29,3 +29,4 @@ input[type=image][src="icons/email_error.png"].spamminess-selected { background-
 #filter-form { margin: 1em 0 1em 0; display: block; }
 .spam-score { font-size: 80%; }
 #footer { font-size: 80%; }
+#retweet-warning { color: red; }

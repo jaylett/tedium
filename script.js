@@ -108,5 +108,18 @@ function tedium_funkify() {
         return false;
     };
     element.style.display = 'block';
+
+    element = document.getElementById('status');
+    element.onkeyup = function() {
+	/* "RT @" + username + ": " = 6 + username.length */
+	elt = document.getElementById('retweet-warning');
+	username = get_children_text(document.getElementById('username'));
+	if (element.value.length > 134 - username.length) {
+	    elt.style.display = 'block';
+	} else {
+	    elt.style.display = 'none';
+	}
+	    
+    }
 };
 tedium_funkify();
