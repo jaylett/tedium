@@ -22,7 +22,7 @@
       <input style='display: none;' type='submit' name='append-uri' id='append-uri' value='^^ Append' />
     </form>
 
-    <ol>
+    <ol class='tweet-list'>
 {% for tweet in tweets %}
 <li class='{% if tweet._is_new %}new {% endif %}{% if tweet._is_notindigest %}notindigest {% endif %}{% if tweet._is_protected%}protected {% endif %}{% if tweet._is_spam%}spam{% endif %}'><span
 class='time'>{{ tweet.date }}</span><span

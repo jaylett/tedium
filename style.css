@@ -1,8 +1,8 @@
 body { font-family: Verdana, sans-serif; color: black; background-color: white; }
-ol { list-style: none inside; margin: 0; padding: 0 }
-ol { border-top: 1px solid black; padding-top: 1em; margin-top: 1em; display: block; font-size: 100%; }
-li:after { content: " "; display: block; clear: both; }
-li { clear: both; border-bottom: 1px dashed black; min-height: 1.2em; }
+ol.tweet-list { list-style: none inside; margin: 0; padding: 0 }
+ol.tweet-list { border-top: 1px solid black; padding-top: 1em; margin-top: 1em; display: block; font-size: 100%; }
+.tweet-list li:after { content: " "; display: block; clear: both; }
+.tweet-list li { clear: both; border-bottom: 1px dashed black; min-height: 1.2em; }
 .time { width: 5%; vertical-align: top; float: left; padding-left: 0.2em; }
 .author { width: 20%; vertical-align: top; float: left; }
 .tweet-tools { float: left; width: 10%; text-align: right; }
@@ -30,3 +30,23 @@ input[type=image][src="icons/email_error.png"].spamminess-selected { background-
 .spam-score { font-size: 80%; }
 #footer { font-size: 80%; }
 #retweet-warning { color: red; }
+.user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.user-list li {
+  margin: 0;
+  padding: 0;
+  display: inline;
+  clear: both;
+  width: 100%;
+  overflow: hidden;
+}
+.user-list img {
+  float: right;
+  margin-left: 5px;
+}
+.user-list p {
+  font-size: 80%;
+}

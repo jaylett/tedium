@@ -185,6 +185,26 @@ class Driver:
         print "Location: %s" % next_uri
         print
 
+    def manage(self, form):
+        if os.environ.get('REQUEST_METHOD')=='POST':
+            return self.manage_post(form)
+        else:
+            return self.manage_get(form)
+
+    def manage_post(self, form):
+        return
+
+    def manage_get(self, form):
+        print "Content-Type: text/html; charset=utf-8\r\n"
+        tmpl = self.env.get_template('manage.html')
+        authors = self.tedium.get_authors()
+        authors.sort(lambda x, y: -cmp(x['priority'], y['priority']))
+        print tmpl.render(
+            tedium  = self.tedium,
+            cssfile = self._ponder_stylesheet(),
+            authors = authors[0:10],
+            ).encode('utf-8')
+
     def do_get(self, form=None):
         """Process a GET request."""
         self._auth()
@@ -192,8 +212,11 @@ class Driver:
         if form==None:
             form = cgi.FieldStorage()
 
+        if form.has_key('manage'):
+            return self.manage(form)
+
         if os.environ.get('REQUEST_METHOD')=='POST':
-            self.do_post(form)
+            return self.do_post(form)
 
         # replies is one of 'all' or 'digest'
         # all shows all replies; digest has the same behaviour as for
@@ -250,7 +273,11 @@ class Driver:
             num_to_get = int(form.getfirst('tweets'))
         except:
             num_to_get = 10
-        tweets = self.tedium.tweets_to_view(num_to_get, replies, spam)
+        try:
+            min_priority = int(form.getfirst('priority'))
+        except:
+            min_priority = 0
+        tweets = self.tedium.tweets_to_view(num_to_get, replies, spam, min_priority)
 
         my_status = self.tedium.get_conf('current_status')
 
@@ -287,5 +314,6 @@ class Driver:
         if not self.is_test and len(tweets)>0:
             max_published = max(map(lambda x: x['published'], tweets))
             self.tedium.set_conf('last_viewed', max_published)
-            self.tedium.set_conf('last_digest', max_published)
+            if min_priority==0:
+                self.tedium.set_conf('last_digest', max_published)
             self.tedium.save_changes()

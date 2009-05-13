@@ -152,9 +152,15 @@ class Tedium:
         else:
             raise tedium.TediumError('You must configure Tedium before it will work.\nJust run it from the command line to get things started.')
 
-    def delete_credentials(self, cursor):
+    def delete_credentials(self, cursor=None):
+        c = None
+        if cursor==None:
+            c = self.db.cursor()
+            cursor = c
         cursor.execute("UPDATE metadata SET username=NULL, password=NULL")
         self.db.commit()
+        if c:
+            c.close()
 
     def _upgrade_database(self, old_version, cursor):
         if old_version<2:
@@ -216,6 +222,8 @@ class Tedium:
             pass
         except httplib.BadStatusLine: # naughty Twitter
             pass
+        except sqlite.OperationalError:  # db lock failure, meh
+            pass
         except:
             if data!=None:
 		print "Failed to cope with '%s'" % data
@@ -235,7 +243,7 @@ class Tedium:
             if max_published!=None:
                 self.set_conf('last_updated', max_published)
             # Because if the next bit goes wrong we don't want to lose this
-             # date and have to do it again.
+            # date and have to do it again.
             self.save_changes()
 
             # And do the same for replies (which will sometimes be duplicates)
@@ -260,17 +268,23 @@ class Tedium:
         except urllib2.URLError, e:
             try:
                 if e.code==401:
-                    self.delete_credentials(c)
-                    c.close()
+                    self.delete_credentials()
                     raise tedium.TediumError('Username/password incorrect!', e)
-                c.close()
                 if e.code==304:
                     # Not modified, don't kick up a fuss
                     return
                 #print e.read()
                 #raise tedium.TediumError('Could not fetch updates from Twitter', e)
-            except:
+            except AttributeError:
+                # probably because e.code doesn't exist, due to timeout
+                # or similar
                 raise tedium.TediumError('Error handling failed', e)
+            except:
+                import traceback
+                traceback.print_exc()
+                raise tedium.TediumError('Error handling failed', e)
+        except sqlite.OperationalError:  # db lock failure, meh
+            raise
         except:
             if data!=None:
 		print "Failed to cope with '%s'" % data
@@ -282,13 +296,19 @@ class Tedium:
             tweets = etree_fromstring(tweet_data)
             max_published = None
             if tweets.tag!='statuses':
+                c.close()
+                return None
                 raise tedium.TediumError('Twitter response was not an XML doc with root statuses')
             for tweet in tweets:
                 if tweet.tag!='status':
                     raise tedium.TediumError('Twitter response was not a list of statuses')
+                published = None
                 try:
                     try:
                         published = self.process_tweet(tweet, c)
+                    except sqlite.OperationalError:  # db lock failure, meh
+                        print "While processing a tweet..."
+                        raise
                     except sqlite.IntegrityError:
                         # it's already in there because of a previous reply
                         # weirdness or something
@@ -368,6 +388,26 @@ class Tedium:
                 u['is_me'] = False
             self._author_cache[id] = u
             return u
+
+    def get_authors(self):
+        cursor = self.db.cursor()
+        cursor.execute("SELECT author_fn, author_nick, author_avatar, author_protected, author_include_replies, author_id, author_include_replies_from, author_ignore_until, author_priority FROM authors")
+        rows = cursor.fetchall()
+        out = []
+        for row in rows:
+            u = { 'id': row[5], 'fn': row[0], 'nick': row[1], 'avatar': row[2], 'include_replies_to': row[4], 'include_replies_from': row[6], 'ignore_until': row[7], 'priority': row[8] }
+            if row[3]=='true':
+                u['protected'] = True
+            else:
+                u['protected'] = False
+            if u['nick'] == self.username:
+                u['is_me'] = True
+            else:
+                u['is_me'] = False
+            self._author_cache[row[5]] = u
+            out.append(u)
+        cursor.close()
+        return out
 
     def digest_line(self, keys):
         if self.digest_format!=None:
@@ -600,7 +640,7 @@ class Tedium:
             self.save_changes()
         c.close()
 
-    def tweets_to_view(self, min_to_display, replies='all', spam='all'):
+    def tweets_to_view(self, min_to_display, replies='all', spam='all', min_priority=0):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest')
         if last_digest!=None:
@@ -632,7 +672,7 @@ class Tedium:
         for row in rows:
         
             # ignore replies not to/from us or to/from a marked author
-            if self._should_skip_tweet(row, skip_spam=(spam=='none'), skip_replies=(replies=='digest'), cursor=c):
+            if self._should_skip_tweet(row, skip_spam=(spam=='none'), skip_replies=(replies=='digest'), cursor=c, min_author_priority=min_priority):
                 continue
             author = self.get_author(row[2], c)
             out_rows.append({ 'date': row[0],

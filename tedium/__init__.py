@@ -65,6 +65,7 @@ Invoke as: tedium.main().
 import getopt, sys, os
 
 import tedium.Tedium
+from pysqlite2 import dbapi2 as sqlite
 
 __all__ = ['Cgi', 'Tedium']
 
@@ -142,6 +143,8 @@ def main():
         else:
             # Get latest tweets (possibly prompt for configuration first)
             t.update()
+    except sqlite.OperationalError:  # db lock failure, meh
+        print "Yeah, that's not going to work (db lock, probably)."
     except TediumError, e:
         sys.stdout.write(str(e))
         sys.stdout.write("\n")

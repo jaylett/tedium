@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Manage tedium for {{tedium.username | escape }}{% endblock %}
+
+{% block content %}
+<h1>Manage users</h1>
+<ul class='user-list'>
+{% for author in authors %}
+<li>
+<h2>{{ author.nick }} ({{ author.fn }})</h2>
+<p>
+<img src='{{ author.avatar }}'>
+Include replies to: {{ author.include_replies_to }}<br />
+Include replies from: {{ author.include_replies_from }}<br />
+Ignore until: {{ author.ignore_until }}<br />
+Priority: {{ author.priority }}
+</p>
+</li>
+{% endfor %}
+</ul>
+{% endblock %}
+
+{% block tail %}
+<script type='text/javascript' src='script.js'></script>
+{% endblock %}

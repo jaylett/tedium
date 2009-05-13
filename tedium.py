@@ -20,6 +20,8 @@
 # USA
 #
 # FIXME: spam unlearn then learn doesn't seem to work properly
+# FIXME: last_replies doesn't get updated if the tweets are already processed
+#        (which is almost always)
 # FEATURE: if can't post tweet (or do some other operation), pend it
 # FEATURE: email digest and escapable entities, waaah (works, but... eww)
 # FEATURE: use jinja for email digest? (split into separate module if so)
