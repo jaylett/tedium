@@ -20,7 +20,8 @@
 """Core; currently, everything except CGI and invocation."""
 
 import httplib, urllib, urllib2, os, os.path, sys, spambayes.storage
-import datetime, time, smtplib, textwrap, pwd, getopt, xml.parsers.expat
+import datetime, time, smtplib, textwrap, pwd, getopt
+from utils import unescape
 
 try:
     from xml.etree.ElementTree import fromstring as etree_fromstring # python 2.5
@@ -29,7 +30,7 @@ except:
 
 from pysqlite2 import dbapi2 as sqlite
 from email.MIMEText import MIMEText
-import email.Charset
+import email.Charset, email.Utils
 
 import tedium
 
@@ -259,12 +260,6 @@ class Tedium:
             if max_published!=None:
                 self.set_conf('last_replies', max_published)
             self.save_changes()
-        except xml.parsers.expat.ExpatError, e:
-            # Twitter are just lame. Apparently they don't know how to
-            # program their load balancers (amongst, you know,
-            # everything else).
-            # raise tedium.TediumError('Could not fetch updates from Twitter', e)
-            pass
         except urllib2.URLError, e:
             try:
                 if e.code==401:
@@ -409,11 +404,18 @@ class Tedium:
         cursor.close()
         return out
 
+    def unmangle(self, d):
+        "Go through the dict `d`, unescaping common HTML entities. Don't change in place."
+        out = {}
+        for k in d.keys():
+            out[k] = unescape(d[k])
+        return out
+
     def digest_line(self, keys):
         if self.digest_format!=None:
-            return self.digest_format % keys
+            return self.digest_format % self.unmangle(keys)
         else:
-            return tedium.DEFAULT_DIGEST_FORMAT % keys
+            return tedium.DEFAULT_DIGEST_FORMAT % self.unmangle(keys)
 
     def get_author_by_username(self, username, cursor):
         cursor.execute("SELECT author_id FROM authors WHERE author_nick=?", [username])
@@ -610,14 +612,17 @@ class Tedium:
                 if min_author_priority>1:
                     c.execute("UPDATE tweets SET tweet_digested=1 WHERE tweet_id=?", [row[5]])
             if digest!='':
-                digest = "Hi %s. Here's your twitter digest:\n\n%s" % (self.username, digest)
+                email_text = "Hi %s. Here's your twitter digest" % (self.username,)
+                if min_author_priority>0:
+                    email_text += " at priority %i" % (min_author_priority,)
+                email_text += ":\n\n%s" % (digest,)
 
                 if email_address=='show':
-                    print digest.encode('utf8')
+                    print email_text.encode('utf8')
                     c.close()
                     return
                 else:
-                    msg = MIMEText(digest.encode('utf8'), 'plain', 'utf8')
+                    msg = MIMEText(email_text.encode('utf8'), 'plain', 'utf8')
                     msg['Subject'] = 'Twitter digest'
                     if real!=None:
                         format_email = '%s <%s>' % (real, email_address)
@@ -625,6 +630,7 @@ class Tedium:
                         format_email = '%s <%s>' % ('Tedium', email_address)
                     msg['From'] = format_email
                     msg['To'] = format_email
+                    msg['Date'] = email.Utils.formatdate()
                     s = smtplib.SMTP()
                     s.connect()
                     s.sendmail(email_address, [email_address], msg.as_string())
