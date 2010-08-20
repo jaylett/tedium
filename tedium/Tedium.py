@@ -595,7 +595,7 @@ class Tedium:
             c.close()
         return False
 
-    def digest(self, email_address, real=None, min_author_priority=0):
+    def digest(self, email_address, real=None, min_author_priority=0, send=True):
         c = self.db.cursor()
         last_digest = self.get_conf('last_digest', '1970-01-01 00:00:00')
         c.execute("SELECT STRFTIME('%H:%M', tweet_published), tweet_text, tweet_author, tweet_published, tweet_spam, tweet_id, tweet_digested FROM tweets WHERE tweet_published > ? ORDER BY tweet_published ASC", [last_digest])
@@ -611,7 +611,7 @@ class Tedium:
                 digest += self.digest_line(digest_keys)
                 if min_author_priority>1:
                     c.execute("UPDATE tweets SET tweet_digested=1 WHERE tweet_id=?", [row[5]])
-            if digest!='':
+            if digest!='' and send:
                 email_text = "Hi %s. Here's your twitter digest" % (self.username,)
                 if min_author_priority>0:
                     email_text += " at priority %i" % (min_author_priority,)
@@ -623,7 +623,7 @@ class Tedium:
                     return
                 else:
                     msg = MIMEText(email_text.encode('utf8'), 'plain', 'utf8')
-                    msg['Subject'] = 'Twitter digest'
+                    msg['Subject'] = 'Twitter digest (level %i)' % (min_author_priority,)
                     if real!=None:
                         format_email = '%s <%s>' % (real, email_address)
                     else:

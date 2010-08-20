@@ -72,7 +72,7 @@ __all__ = ['Cgi', 'Tedium']
 VERSION = '0.7'
 #DEFAULT_DIGEST_FORMAT = u'(%(time)5.5s) %(nick)12.12s: %(tweet)-48.48s \u00bb\n'
 #DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(nick)12.12s: %(tweet)s\n'
-DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(fn)s: \n%(wrapped_tweet)s\n\n'
+DEFAULT_DIGEST_FORMAT = '(%(time)5.5s) %(fn)s [%(nick)s]: \n%(wrapped_tweet)s\n\n'
 
 class TediumError(RuntimeError):
     def __init__(self, message, aux=None):
@@ -131,7 +131,10 @@ def main():
                     min_priority = int(args[2])
                 except ValueError:
                     min_priority = 0
-                t.digest(args[0], args[1], min_priority)
+                if len(args)>3:
+                    t.digest(args[0], args[1], min_priority, args[3]!='nomail')
+                else:
+                    t.digest(args[0], args[1], min_priority)
             elif len(args)>1:
                 t.digest(args[0], args[1])
             else:
